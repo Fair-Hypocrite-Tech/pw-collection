@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         PW collection bot
 // @namespace    http://tampermonkey.net/
-// @version      2024-09-11
+// @version      2024-12-27
 // @description  Just refresh the collection page
 // @author       Fair Hypocrite
 // @match        https://pwonline.ru/minigames.php?game=collection&doo=display*
 // @icon         https://pwonline.ru/favicon.ico
 // @grant        none
+// @updateURL    https://github.com/FairHypo/pw-collection/raw/main/collection.user.js
+// @downloadURL  https://github.com/FairHypo/pw-collection/raw/main/collection.user.js
 // ==/UserScript==
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
