@@ -43,6 +43,7 @@ class CollectionRoulette {
         }
         this.targetCategory = targetCat
         this.debugModeOn = debugModeOn
+        this.startTime = performance.now()
     }
 
     async getNewState () {
@@ -91,7 +92,6 @@ class CollectionRoulette {
     }
 
     async stopIfTargetReached(category) {
-        alert('Текущая: ' + category + ', Целевая: ' + this.targetCategory + ', = ' + (category === this.targetCategory) + ' type ' + (typeof category) + ' ' + (typeof this.targetCategory));
         if (this.currentState.rows[category] === this.resolveCardsLimitByCurrentCategory(category)) {
             if (category < this.targetCategory) {
                 await this.pushColumn(category)
@@ -116,7 +116,7 @@ class CollectionRoulette {
     }
 
     formatStats() {
-        const template = 'Статистика:\n' +
+        const template = 'Время выполнения: __TIME__\n' +
             'Всего потрачено карточек: __TOTAL__\n' +
             'Из них:\n' +
             'Первая категория: __1CAT__ | __1PERCENT__%\n' +
@@ -126,7 +126,9 @@ class CollectionRoulette {
             'Пятая категория: __5CAT__ | __5PERCENT__%\n' +
             'Шестая категория: __6CAT__ | __6PERCENT__%\n'
 
-        let response = template.replace('__TOTAL__', this.quantityStats.total)
+        let response = template.replace('__TIME__', this.formatTime(performance.now() - this.startTime))
+
+        response = response.replace('__TOTAL__', this.quantityStats.total)
 
         for (let i = 1; i < 7; i++) {
             response = response
@@ -135,6 +137,21 @@ class CollectionRoulette {
         }
 
         return response
+    }
+
+    formatTime(durationMs) {
+        const hours = Math.floor(durationMs / 3600000);
+        const minutes = Math.floor((durationMs % 3600000) / 60000);
+        const seconds = Math.floor((durationMs % 60000) / 1000);
+        const milliseconds = Math.floor(durationMs % 1000);
+
+        const parts = [];
+        if (hours > 0) parts.push(`${hours}ч`);
+        if (minutes > 0 || hours > 0) parts.push(`${minutes}м`);
+        if (seconds > 0 || minutes > 0 || hours > 0) parts.push(`${seconds}с`);
+        parts.push(`${milliseconds}мс`);
+
+        return parts.join(' ');
     }
 
     getPercentage(category) {
