@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PW collection bot
 // @namespace    http://tampermonkey.net/
-// @version      2024-12-27
+// @version      2024.12.27
 // @description  Just refresh the collection page
 // @author       Fair Hypocrite
 // @match        https://pwonline.ru/minigames.php?game=collection&doo=display*
