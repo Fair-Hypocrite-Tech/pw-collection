@@ -72,6 +72,15 @@ class CollectionRoulette {
         await fetch('https://pwonline.ru/minigames.php?game=collection&doo=turn');
     }
 
+    async collectReward(category) {
+        try {
+            await fetch(`https://pwonline.ru/minigames.php?game=collection&doo=get_item&category=${category}`);
+            console.log(`Reward collected for category ${category}`);
+        } catch (error) {
+            console.error(`Failed to collect reward for category ${category}:`, error);
+        }
+    }
+
     async pushColumn(category) {
         await fetch(`https://pwonline.ru/minigames.php?game=collection&doo=get_next&category=${category}`);
         this.updateCurrentState(await this.getNewState())
@@ -82,15 +91,16 @@ class CollectionRoulette {
     }
 
     async stopIfTargetReached(category) {
+        alert('Текущая: ' + category + ', Целевая: ' + this.targetCategory + ', = ' + (category === this.targetCategory) + ' type ' + (typeof category) + ' ' + (typeof this.targetCategory));
         if (this.currentState.rows[category] === this.resolveCardsLimitByCurrentCategory(category)) {
             if (category < this.targetCategory) {
                 await this.pushColumn(category)
                 category++
                 return false
             } else if (category === this.targetCategory) {
-                this.sayTargetReached()
-
-                return true
+                await this.collectReward(this.targetCategory)
+                this.updateCurrentState(await this.getNewState());
+                return false
             } else {
                 this.sayTargetOverachieved()
 
@@ -143,7 +153,7 @@ class CollectionRoulette {
     }
 
     sayTargetOverachieved() {
-        alert('Собрана категория более высокого уровня!\n' + this.formatStats());
+        alert('Собрана категория более высокого уровня!\n Примите решение и перезагрузите страницу для перезапуска скрипта \n' + this.formatStats());
     }
 
     sayStats() {
@@ -264,7 +274,7 @@ if (confirm('Запустить скрипт разбора карточек?'))
         // if (confirm(debugModeConfirmationMessage)) {
         //     debugModeOn = true
         // }
-        const roulette = new CollectionRoulette(targetCat, debugModeOn)
+        const roulette = new CollectionRoulette(parseInt(targetCat), debugModeOn)
         await roulette.process()
     }
 }
