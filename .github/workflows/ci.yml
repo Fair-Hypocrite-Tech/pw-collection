@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - feat/*
+      - fix/*
+      - refactor/*
+      - test/*
+      - docs/*
+      - ci/*
+
+jobs:
+  userscript-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate userscript syntax
+        run: node --check collection.user.js
+
+      - name: Run helper tests
+        run: node --test tests/*.test.cjs
