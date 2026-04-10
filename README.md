@@ -1,34 +1,93 @@
-# PW collection bot
-The cards move themselves right “under the hood” while you're making something great again or chatting in clan chat.
+# PW Collection Bot
 
-The script can be used both ways: within Tampermonkey browser add-on or standalone via copy-pasting in browser console.
+Userscript для автоматизации акции "Коллекция" на сайте Perfect World.
 
-[Install the script](https://github.com/FairHypo/pw-collection/raw/main/collection.user.js)
+## Русская версия
 
-The script will ask the necessary questions using alerts and start execution afterwards.
+Что делает скрипт:
 
-When the target category is collected or the cards have run out, the script will show the statistics of card distribution by category also with an alert.
+- открывает карточки автоматически;
+- определяет, в какую категорию выпала новая карточка;
+- автоматически переводит собранные промежуточные категории выше;
+- забирает приз для выбранной целевой категории;
+- показывает статистику по выпавшим категориям после завершения работы.
 
-If the script is broken, or you find a bug - please find me in any way possible and report the problem.
+Как использовать:
 
-Do the same with all ideas and suggestions for improving the script.
+1. Откройте страницу акции:
+   `https://pwonline.ru/minigames.php?game=collection&doo=display`
+2. Запустите скрипт через Tampermonkey или через консоль браузера.
+3. Подтвердите запуск.
+4. Укажите целевую категорию от `1` до `6`.
+5. Дождитесь завершения работы.
 
-Good luck!
+Установка:
 
------------------------------------------------------------------
-
-Карточки двигаются сами прямо "под капотом", пока вы вновь создаете нечто великое или болтаете в клановом чате.
-
-Скрипт можно использовать как в составе дополнения для браузеров Tampermonkey, так и отдельно, скопировав его в консоль браузера.
+### Tampermonkey
 
 [Установить скрипт](https://github.com/FairHypo/pw-collection/raw/main/collection.user.js)
 
-Скрипт задаст необходимые вопросы с помощью алертов и начнет выполнение после этого.
+### Консоль браузера
 
-Когда целевая категория будет собрана или карточки закончатся, скрипт покажет статистику распределения карточек по категориям, а также выдаст оповещение.
+Откройте страницу акции, вставьте содержимое `collection.user.js` в консоль браузера и выполните его.
 
-Если скрипт сломался или вы обнаружили баг - пожалуйста разыщите меня любым возможным способом и сообщите о проблеме.
+Текущие особенности поведения:
 
-Со всеми идеями и предложениями о доработке скрипта поступайте аналогично.
+- После получения приза целевой категории скрипт продолжает работу дальше.
+- Если соберется категория выше целевой, скрипт остановится и попросит принять решение вручную.
+- Debug-режим сейчас отключен для обычного использования.
 
-Удачи!
+Структура проекта:
+
+- [collection.user.js](./collection.user.js): сам userscript.
+- [README.md](./README.md): документация проекта.
+
+Обратная связь:
+
+Если скрипт сломался или вы нашли баг, пожалуйста, сообщите об этом. Идеи по улучшению тоже приветствуются.
+
+## English Version
+
+Userscript for automating the Perfect World "Collection" event page.
+
+What the script does:
+
+- opens cards automatically;
+- detects which category the new card landed in;
+- automatically promotes completed lower categories upward;
+- collects the reward for the selected target category;
+- shows final drop statistics when the run is over.
+
+How to use it:
+
+1. Open the event page:
+   `https://pwonline.ru/minigames.php?game=collection&doo=display`
+2. Start the script with Tampermonkey or from the browser console.
+3. Confirm the launch.
+4. Enter the target category from `1` to `6`.
+5. Wait for the script to finish.
+
+Installation:
+
+### Tampermonkey
+
+[Install the script](https://github.com/FairHypo/pw-collection/raw/main/collection.user.js)
+
+### Browser Console
+
+Open the event page, paste the contents of `collection.user.js` into the browser console, and run it.
+
+Current behavior notes:
+
+- The script continues working after collecting the selected target category.
+- If a category above the target becomes completed, the script stops and asks the user to decide what to do next.
+- Debug mode is currently disabled in normal usage.
+
+Project structure:
+
+- [collection.user.js](./collection.user.js): the userscript itself.
+- [README.md](./README.md): project documentation.
+
+Feedback:
+
+If the script breaks or you find a bug, please report it. Suggestions for improvements are welcome too.
