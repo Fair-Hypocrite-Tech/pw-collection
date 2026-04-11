@@ -8,6 +8,9 @@
 // @downloadURL  https://github.com/FairHypo/pw-collection/raw/main/collection.user.js
 // @match        https://pwonline.ru/minigames.php?game=collection&doo=display*
 // @icon         https://pwonline.ru/favicon.ico
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @connect      pw-collection-stats.fairhypocrite.com
 // ==/UserScript==
@@ -22,9 +25,18 @@ const DEFAULT_CATEGORY_LIMIT = 5;
 const TOP_CATEGORY_LIMIT = 10;
 const STATS_CONFIG = {
     enabled: true,
+    baseUrl: 'https://pw-collection-stats.fairhypocrite.com',
     endpoint: 'https://pw-collection-stats.fairhypocrite.com/v1/stats',
-    clientId: 'fairhypo-main-browser',
-    apiKey: '1cPHX8MY4UdCpgWb3A27KzNEus9kZiGewaySqrj5'
+    connectPage: 'https://pw-collection-stats.fairhypocrite.com/connect',
+    connectCompleteEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/connect/complete',
+    refreshEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/auth/refresh',
+    dashboardUrl: 'https://pw-collection-stats.fairhypocrite.com/dashboard',
+    connectOrigin: 'https://pw-collection-stats.fairhypocrite.com',
+    storagePrefix: 'pwc_stats',
+    clientLabel: 'Tampermonkey browser',
+    connectMessageType: 'pwc-connect-code',
+    connectTimeoutMs: 10 * 60 * 1000,
+    accessTokenGraceMs: 60 * 1000
 };
 
 const MESSAGES = {
@@ -89,6 +101,10 @@ const UI_COPY = {
 
 const UI_STYLE = `
 .pwc-root{position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:"Trebuchet MS","Segoe UI",sans-serif}
+.pwc-actions{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto}
+.pwc-action{appearance:none;border:none;border-radius:999px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;color:#fff8ef;background:linear-gradient(180deg,#bf7b39,#8f5328);box-shadow:0 10px 24px rgba(127,72,30,.22);transition:transform .14s ease,box-shadow .14s ease}
+.pwc-action:hover{transform:translateY(-1px)}
+.pwc-action:active{transform:translateY(1px)}
 .pwc-toasts{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:12px;pointer-events:none}
 .pwc-toast{min-width:250px;max-width:360px;padding:14px 16px;border-radius:16px;color:#fff6ea;background:linear-gradient(145deg,rgba(92,48,24,.96),rgba(40,22,13,.96));border:1px solid rgba(244,205,153,.42);box-shadow:0 18px 44px rgba(0,0,0,.35);transform:translateY(-8px);opacity:0;transition:opacity .18s ease,transform .18s ease}
 .pwc-toast.is-visible{opacity:1;transform:translateY(0)}
@@ -116,8 +132,38 @@ const UI_STYLE = `
 .pwc-modal__button--primary{color:#fff8ef;background:linear-gradient(180deg,#bf7b39,#8f5328);box-shadow:0 10px 24px rgba(127,72,30,.22)}
 .pwc-modal__button--secondary{color:#6c442a;background:rgba(255,249,238,.9);border:1px solid rgba(130,83,44,.16)}
 .pwc-modal__error{margin-top:12px;color:#a53e2e;font-size:14px;line-height:1.45;min-height:20px}
-@media (max-width:640px){.pwc-toasts{left:12px;right:12px;top:12px}.pwc-toast{max-width:none}.pwc-modal-layer{padding:14px}.pwc-modal__content{padding:22px 18px}.pwc-modal__title{font-size:24px}.pwc-modal__actions{flex-direction:column}.pwc-modal__button{width:100%}}
+@media (max-width:640px){.pwc-actions{left:12px;right:12px;bottom:12px}.pwc-action{width:100%}.pwc-toasts{left:12px;right:12px;top:12px}.pwc-toast{max-width:none}.pwc-modal-layer{padding:14px}.pwc-modal__content{padding:22px 18px}.pwc-modal__title{font-size:24px}.pwc-modal__actions{flex-direction:column}.pwc-modal__button{width:100%}}
 `;
+
+const STORAGE_KEYS = {
+    clientId: `${STATS_CONFIG.storagePrefix}_client_id`,
+    authState: `${STATS_CONFIG.storagePrefix}_auth_state`
+};
+
+Object.assign(MESSAGES, {
+    statsConnected: 'Статистика подключена к вашему кабинету.',
+    statsDisconnected: 'Связь со статистикой отключена на этом клиенте.',
+    statsSessionExpired: 'Сессия статистики истекла. Подключите кабинет заново.',
+    statsConnectTimedOut: 'Окно подключения не передало код вовремя. Попробуйте еще раз.',
+    statsConnectCancelled: 'Подключение статистики отменено.'
+});
+
+Object.assign(UI_COPY, {
+    statsButton: 'Статистика',
+    statsPanelTitle: 'Статистика и кабинет',
+    statsPanelConnected: 'Статистика подключена к вашему кабинету.',
+    statsPanelDisconnected: 'Статистика не подключена. Бот будет работать как обычно, но без сохранения истории на сервере.',
+    statsPanelConnect: 'Подключить',
+    statsPanelOpenDashboard: 'Кабинет',
+    statsPanelDisconnect: 'Отключить',
+    statsPanelClose: 'Закрыть',
+    statsPanelConnecting: 'Откройте страницу подключения, войдите на сайте и подтвердите привязку текущего клиента.',
+    statsPanelWaiting: 'Ожидаем одноразовый код подключения из окна кабинета...',
+    statsPanelExpired: 'Сохраненная сессия истекла. Подключите кабинет заново.',
+    statsPanelSessionLine: 'Сессия активна до: ',
+    statsPanelClientLine: 'Client ID: ',
+    statsPanelInstructions: 'После подключения userscript сможет отправлять итоговую статистику автоматически, а в кабинете появится история запусков.'
+});
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -175,28 +221,169 @@ function getScriptSource() {
     return typeof GM_xmlhttpRequest === 'function' ? 'tampermonkey' : 'browser-console';
 }
 
-function isStatsEnabled() {
+function getStoredValue(key, fallback = null) {
+    if (typeof GM_getValue === 'function') {
+        return GM_getValue(key, fallback);
+    }
+
+    try {
+        const value = window.localStorage.getItem(key);
+        return value === null ? fallback : value;
+    } catch (error) {
+        console.warn('Failed to read storage value:', error);
+        return fallback;
+    }
+}
+
+function setStoredValue(key, value) {
+    if (typeof GM_setValue === 'function') {
+        GM_setValue(key, value);
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (error) {
+        console.warn('Failed to write storage value:', error);
+    }
+}
+
+function deleteStoredValue(key) {
+    if (typeof GM_deleteValue === 'function') {
+        GM_deleteValue(key);
+        return;
+    }
+
+    try {
+        window.localStorage.removeItem(key);
+    } catch (error) {
+        console.warn('Failed to remove storage value:', error);
+    }
+}
+
+function parseStoredJSON(value) {
+    if (!value) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        console.warn('Failed to parse stored JSON:', error);
+        return null;
+    }
+}
+
+function isFutureTimestamp(value, nowMs = Date.now()) {
+    if (!value) {
+        return false;
+    }
+
+    const expiresAt = new Date(value).getTime();
+    return Number.isFinite(expiresAt) && expiresAt > nowMs;
+}
+
+function normalizeStatsAuthState(rawState) {
+    if (!rawState || typeof rawState !== 'object') {
+        return null;
+    }
+
+    const normalizedState = {
+        clientId: typeof rawState.clientId === 'string' ? rawState.clientId.trim() : '',
+        accessToken: typeof rawState.accessToken === 'string' ? rawState.accessToken.trim() : '',
+        refreshToken: typeof rawState.refreshToken === 'string' ? rawState.refreshToken.trim() : '',
+        accessExpiresAt: typeof rawState.accessExpiresAt === 'string' ? rawState.accessExpiresAt : '',
+        refreshExpiresAt: typeof rawState.refreshExpiresAt === 'string' ? rawState.refreshExpiresAt : ''
+    };
+
+    if (!normalizedState.clientId || !normalizedState.refreshToken || !normalizedState.refreshExpiresAt) {
+        return null;
+    }
+
+    return normalizedState;
+}
+
+function hasUsableAccessToken(authState, nowMs = Date.now()) {
+    if (!authState || !authState.accessToken) {
+        return false;
+    }
+
+    const expiresAt = new Date(authState.accessExpiresAt).getTime();
+    return Number.isFinite(expiresAt) && expiresAt > nowMs + STATS_CONFIG.accessTokenGraceMs;
+}
+
+function canRefreshStatsSession(authState, nowMs = Date.now()) {
     return Boolean(
-        STATS_CONFIG.enabled
-        && STATS_CONFIG.endpoint
-        && STATS_CONFIG.clientId
-        && STATS_CONFIG.apiKey
+        authState
+        && authState.clientId
+        && authState.refreshToken
+        && isFutureTimestamp(authState.refreshExpiresAt, nowMs)
     );
 }
 
-function sendStatsWithGM(payload) {
+function loadStatsAuthState() {
+    return normalizeStatsAuthState(parseStoredJSON(getStoredValue(STORAGE_KEYS.authState, '')));
+}
+
+function saveStatsAuthState(authState) {
+    const normalizedState = normalizeStatsAuthState(authState);
+    if (!normalizedState) {
+        return;
+    }
+
+    setStoredValue(STORAGE_KEYS.authState, JSON.stringify(normalizedState));
+}
+
+function clearStatsAuthState() {
+    deleteStoredValue(STORAGE_KEYS.authState);
+}
+
+function createRandomId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+
+    return `pwc-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function getStatsClientId() {
+    const storedClientId = String(getStoredValue(STORAGE_KEYS.clientId, '') || '').trim();
+    if (storedClientId) {
+        return storedClientId;
+    }
+
+    const clientId = createRandomId();
+    setStoredValue(STORAGE_KEYS.clientId, clientId);
+    return clientId;
+}
+
+function getStatsStatusSnapshot(nowMs = Date.now()) {
+    const authState = loadStatsAuthState();
+
+    return {
+        connected: hasUsableAccessToken(authState, nowMs) || canRefreshStatsSession(authState, nowMs),
+        clientId: authState?.clientId || getStatsClientId(),
+        authState
+    };
+}
+
+function isStatsEnabled() {
+    return Boolean(STATS_CONFIG.enabled && STATS_CONFIG.endpoint);
+}
+
+function requestWithGM(options) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
-            method: 'POST',
-            url: STATS_CONFIG.endpoint,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Api-Key': STATS_CONFIG.apiKey
-            },
-            data: JSON.stringify(payload),
+            method: options.method,
+            url: options.url,
+            headers: options.headers,
+            data: options.body,
             onload: response => {
                 if (response.status >= 200 && response.status < 300) {
-                    resolve();
+                    resolve({
+                        status: response.status,
+                        text: response.responseText || ''
+                    });
                     return;
                 }
 
@@ -209,29 +396,105 @@ function sendStatsWithGM(payload) {
     });
 }
 
-async function sendStats(payload) {
+async function requestJson(url, options = {}) {
+    const method = options.method || 'GET';
+    const headers = {
+        ...(options.headers || {})
+    };
+    const body = options.body ? JSON.stringify(options.body) : undefined;
+
     if (typeof GM_xmlhttpRequest === 'function') {
-        await sendStatsWithGM(payload);
-        return;
+        const response = await requestWithGM({
+            method,
+            url,
+            headers,
+            body
+        });
+
+        return response.text ? JSON.parse(response.text) : null;
     }
 
-    const response = await fetch(STATS_CONFIG.endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': STATS_CONFIG.apiKey
-        },
-        body: JSON.stringify(payload)
+    const response = await fetch(url, {
+        method,
+        headers,
+        body
     });
 
     if (!response.ok) {
         throw new Error(`Stats server responded with status ${response.status}`);
     }
+
+    const responseText = await response.text();
+    return responseText ? JSON.parse(responseText) : null;
+}
+
+async function refreshStatsSession(authState) {
+    const response = await requestJson(STATS_CONFIG.refreshEndpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: {
+            clientId: authState.clientId,
+            refreshToken: authState.refreshToken
+        }
+    });
+
+    const nextState = normalizeStatsAuthState(response);
+    if (!nextState) {
+        throw new Error(MESSAGES.statsSessionExpired);
+    }
+
+    saveStatsAuthState(nextState);
+    return nextState;
+}
+
+async function ensureStatsAccessToken() {
+    const authState = loadStatsAuthState();
+    if (!authState) {
+        return null;
+    }
+
+    if (hasUsableAccessToken(authState)) {
+        return authState;
+    }
+
+    if (!canRefreshStatsSession(authState)) {
+        clearStatsAuthState();
+        ui.toast(UI_COPY.statsToastTitle, MESSAGES.statsSessionExpired, 'error', 4200);
+        return null;
+    }
+
+    try {
+        return await refreshStatsSession(authState);
+    } catch (error) {
+        clearStatsAuthState();
+        throw error;
+    }
+}
+
+async function sendStats(payload) {
+    const authState = await ensureStatsAccessToken();
+    if (!authState) {
+        return false;
+    }
+
+    await requestJson(STATS_CONFIG.endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authState.accessToken}`
+        },
+        body: payload
+    });
+
+    return true;
 }
 
 class FancyUI {
     constructor() {
         this.root = null;
+        this.actionBar = null;
         this.toastStack = null;
         this.modalLayer = null;
         this.activeResolve = null;
@@ -248,14 +511,31 @@ class FancyUI {
         this.root = document.createElement('div');
         this.root.className = 'pwc-root';
 
+        this.actionBar = document.createElement('div');
+        this.actionBar.className = 'pwc-actions';
+
         this.toastStack = document.createElement('div');
         this.toastStack.className = 'pwc-toasts';
 
         this.modalLayer = document.createElement('div');
         this.modalLayer.className = 'pwc-modal-layer';
 
-        this.root.append(style, this.toastStack, this.modalLayer);
+        this.root.append(style, this.actionBar, this.toastStack, this.modalLayer);
         document.body.appendChild(this.root);
+    }
+
+    setActions(actions) {
+        this.ensureMounted();
+        this.actionBar.innerHTML = '';
+
+        for (const action of actions) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'pwc-action';
+            button.textContent = action.label;
+            button.addEventListener('click', action.onClick);
+            this.actionBar.appendChild(button);
+        }
     }
 
     toast(title, message, tone = 'info', duration = 3200) {
@@ -460,6 +740,150 @@ class FancyUI {
 
 const ui = new FancyUI();
 
+function buildStatsPanelDetails() {
+    const snapshot = getStatsStatusSnapshot();
+    const details = [
+        snapshot.connected ? UI_COPY.statsPanelConnected : UI_COPY.statsPanelDisconnected,
+        UI_COPY.statsPanelClientLine + snapshot.clientId
+    ];
+
+    if (snapshot.authState?.accessExpiresAt) {
+        details.push(UI_COPY.statsPanelSessionLine + snapshot.authState.accessExpiresAt);
+    } else if (snapshot.authState && !snapshot.connected) {
+        details.push(UI_COPY.statsPanelExpired);
+    }
+
+    details.push('');
+    details.push(UI_COPY.statsPanelInstructions);
+    return details.join('\n');
+}
+
+function waitForConnectCode(clientId) {
+    return new Promise((resolve, reject) => {
+        let timeoutId = null;
+
+        const cleanup = () => {
+            window.removeEventListener('message', onMessage);
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId);
+            }
+        };
+
+        const onMessage = event => {
+            if (event.origin !== STATS_CONFIG.connectOrigin) {
+                return;
+            }
+
+            const data = event.data;
+            if (!data || data.type !== STATS_CONFIG.connectMessageType || data.clientId !== clientId || !data.code) {
+                return;
+            }
+
+            cleanup();
+            resolve(String(data.code));
+        };
+
+        timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error(MESSAGES.statsConnectTimedOut));
+        }, STATS_CONFIG.connectTimeoutMs);
+
+        window.addEventListener('message', onMessage);
+    });
+}
+
+async function connectStatsAccount() {
+    const clientId = getStatsClientId();
+    const connectUrl = new URL(STATS_CONFIG.connectPage);
+    connectUrl.searchParams.set('clientId', clientId);
+    connectUrl.searchParams.set('clientLabel', STATS_CONFIG.clientLabel);
+
+    const popup = window.open(connectUrl.toString(), '_blank', 'width=720,height=880');
+    if (!popup) {
+        throw new Error(MESSAGES.statsConnectCancelled);
+    }
+
+    ui.toast(UI_COPY.statsToastTitle, UI_COPY.statsPanelConnecting, 'info', 4200);
+    const code = await waitForConnectCode(clientId);
+    ui.toast(UI_COPY.statsToastTitle, UI_COPY.statsPanelWaiting, 'info', 3200);
+
+    const nextState = await requestJson(STATS_CONFIG.connectCompleteEndpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: {
+            clientId,
+            clientLabel: STATS_CONFIG.clientLabel,
+            code
+        }
+    });
+
+    const normalizedState = normalizeStatsAuthState(nextState);
+    if (!normalizedState) {
+        throw new Error(MESSAGES.statsConnectCancelled);
+    }
+
+    saveStatsAuthState(normalizedState);
+    ui.toast(UI_COPY.statsToastTitle, MESSAGES.statsConnected, 'success', 4200);
+}
+
+function disconnectStatsAccount() {
+    clearStatsAuthState();
+    ui.toast(UI_COPY.statsToastTitle, MESSAGES.statsDisconnected, 'success', 3200);
+}
+
+async function openStatsPanel() {
+    const snapshot = getStatsStatusSnapshot();
+    const buttons = [
+        {label: UI_COPY.statsPanelClose, value: 'close', variant: 'secondary'}
+    ];
+
+    if (snapshot.connected) {
+        buttons.push({label: UI_COPY.statsPanelDisconnect, value: 'disconnect', variant: 'secondary'});
+        buttons.push({label: UI_COPY.statsPanelOpenDashboard, value: 'dashboard', variant: 'primary'});
+    } else {
+        buttons.push({label: UI_COPY.statsPanelConnect, value: 'connect', variant: 'primary'});
+    }
+
+    const action = await ui.openModal({
+        title: UI_COPY.statsPanelTitle,
+        message: snapshot.connected ? UI_COPY.statsPanelConnected : UI_COPY.statsPanelDisconnected,
+        details: buildStatsPanelDetails(),
+        buttons
+    });
+
+    if (action === 'connect') {
+        try {
+            await connectStatsAccount();
+        } catch (error) {
+            console.error('Failed to connect stats:', error);
+            await ui.alert(UI_COPY.errorTitle, error instanceof Error ? error.message : String(error));
+        }
+        return;
+    }
+
+    if (action === 'disconnect') {
+        disconnectStatsAccount();
+        return;
+    }
+
+    if (action === 'dashboard') {
+        window.open(STATS_CONFIG.dashboardUrl, '_blank');
+    }
+}
+
+function initStatsControls() {
+    ui.setActions([
+        {
+            label: UI_COPY.statsButton,
+            onClick: () => {
+                void openStatsPanel();
+            }
+        }
+    ]);
+}
+
 class CollectionRoulette {
     constructor(targetCategory, debugModeOn) {
         this.currentState = createEmptyState();
@@ -589,7 +1013,7 @@ class CollectionRoulette {
         }, {});
 
         return {
-            clientId: STATS_CONFIG.clientId,
+            clientId: getStatsClientId(),
             targetCategory: this.targetCategory,
             startedAt: this.startedAt.toISOString(),
             finishedAt: new Date().toISOString(),
@@ -607,7 +1031,11 @@ class CollectionRoulette {
         }
 
         try {
-            await sendStats(this.buildStatsPayload());
+            const sent = await sendStats(this.buildStatsPayload());
+            if (!sent) {
+                return;
+            }
+
             this.statsSent = true;
             ui.toast(UI_COPY.statsToastTitle, MESSAGES.statsSent, 'success');
         } catch (error) {
@@ -767,6 +1195,7 @@ async function startScript() {
 
     await delay(2000);
     ui.ensureMounted();
+    initStatsControls();
     ui.toast(UI_COPY.readyToastTitle, UI_COPY.readyToastMessage, 'success', 2200);
 
     try {
