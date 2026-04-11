@@ -59,12 +59,17 @@ function loadHelpers() {
         extractConst('TOP_CATEGORY'),
         extractConst('DEFAULT_CATEGORY_LIMIT'),
         extractConst('TOP_CATEGORY_LIMIT'),
+        extractConst('STATS_CONFIG'),
         extractFunction('createEmptyRows'),
         extractFunction('createEmptyState'),
         extractFunction('createEmptyStats'),
         extractFunction('getCategoryLimit'),
         extractFunction('isValidTargetCategory'),
-        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT };'
+        extractFunction('isFutureTimestamp'),
+        extractFunction('normalizeStatsAuthState'),
+        extractFunction('hasUsableAccessToken'),
+        extractFunction('canRefreshStatsSession'),
+        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG };'
     ].join('\n\n');
 
     vm.runInNewContext(helperSource, sandbox);
@@ -116,4 +121,55 @@ test('isValidTargetCategory accepts only integer-like values from 1 to 6', () =>
     assert.equal(helpers.isValidTargetCategory('abc'), false);
     assert.equal(helpers.isValidTargetCategory(''), false);
     assert.equal(helpers.isValidTargetCategory(null), false);
+});
+
+test('normalizeStatsAuthState keeps only complete auth payloads', () => {
+    assert.deepEqual(
+        normalize(helpers.normalizeStatsAuthState({
+            clientId: ' client-1 ',
+            accessToken: ' token-a ',
+            refreshToken: ' token-r ',
+            accessExpiresAt: '2026-04-20T00:00:00.000Z',
+            refreshExpiresAt: '2026-04-30T00:00:00.000Z'
+        })),
+        {
+            clientId: 'client-1',
+            accessToken: 'token-a',
+            refreshToken: 'token-r',
+            accessExpiresAt: '2026-04-20T00:00:00.000Z',
+            refreshExpiresAt: '2026-04-30T00:00:00.000Z'
+        }
+    );
+
+    assert.equal(helpers.normalizeStatsAuthState({clientId: 'x'}), null);
+});
+
+test('hasUsableAccessToken respects the grace window before expiry', () => {
+    const nowMs = Date.parse('2026-04-11T10:00:00.000Z');
+
+    assert.equal(helpers.hasUsableAccessToken({
+        accessToken: 'token',
+        accessExpiresAt: '2026-04-11T10:05:00.000Z'
+    }, nowMs), true);
+
+    assert.equal(helpers.hasUsableAccessToken({
+        accessToken: 'token',
+        accessExpiresAt: '2026-04-11T10:00:20.000Z'
+    }, nowMs), false);
+});
+
+test('canRefreshStatsSession accepts only non-expired refreshable states', () => {
+    const nowMs = Date.parse('2026-04-11T10:00:00.000Z');
+
+    assert.equal(helpers.canRefreshStatsSession({
+        clientId: 'client-1',
+        refreshToken: 'refresh-token',
+        refreshExpiresAt: '2026-04-11T11:00:00.000Z'
+    }, nowMs), true);
+
+    assert.equal(helpers.canRefreshStatsSession({
+        clientId: 'client-1',
+        refreshToken: 'refresh-token',
+        refreshExpiresAt: '2026-04-11T09:59:59.000Z'
+    }, nowMs), false);
 });
