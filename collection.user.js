@@ -711,7 +711,21 @@ class FancyUI {
                 buttonNode.type = 'button';
                 buttonNode.className = `pwc-modal__button pwc-modal__button--${button.variant || 'secondary'}`;
                 buttonNode.textContent = button.label;
-                buttonNode.addEventListener('click', () => submit(button));
+                buttonNode.addEventListener('click', () => {
+                    try {
+                        if (typeof button.beforeSubmit === 'function') {
+                            const shouldContinue = button.beforeSubmit();
+                            if (shouldContinue === false) {
+                                return;
+                            }
+                        }
+                    } catch (buttonError) {
+                        error.textContent = buttonError instanceof Error ? buttonError.message : String(buttonError);
+                        return;
+                    }
+
+                    submit(button);
+                });
                 actions.appendChild(buttonNode);
             }
 
@@ -792,19 +806,39 @@ function waitForConnectCode(clientId) {
     });
 }
 
-async function connectStatsAccount() {
-    const clientId = getStatsClientId();
+function buildStatsConnectUrl(clientId) {
     const connectUrl = new URL(STATS_CONFIG.connectPage);
     connectUrl.searchParams.set('clientId', clientId);
     connectUrl.searchParams.set('clientLabel', STATS_CONFIG.clientLabel);
+    return connectUrl.toString();
+}
 
-    const popup = window.open(connectUrl.toString(), '_blank', 'width=720,height=880');
+function prepareStatsConnectFlow() {
+    const clientId = getStatsClientId();
+    return {
+        clientId,
+        connectPromise: waitForConnectCode(clientId)
+    };
+}
+
+function openStatsConnectPopup(clientId) {
+    const popup = window.open(buildStatsConnectUrl(clientId), '_blank', 'width=720,height=880');
     if (!popup) {
         throw new Error(MESSAGES.statsConnectCancelled);
     }
 
+    return popup;
+}
+
+async function connectStatsAccount(preparedFlow = null) {
+    const connectFlow = preparedFlow || prepareStatsConnectFlow();
+
+    if (!preparedFlow) {
+        openStatsConnectPopup(connectFlow.clientId);
+    }
+
     ui.toast(UI_COPY.statsToastTitle, UI_COPY.statsPanelConnecting, 'info', 4200);
-    const code = await waitForConnectCode(clientId);
+    const code = await connectFlow.connectPromise;
     ui.toast(UI_COPY.statsToastTitle, UI_COPY.statsPanelWaiting, 'info', 3200);
 
     const nextState = await requestJson(STATS_CONFIG.connectCompleteEndpoint, {
@@ -813,7 +847,7 @@ async function connectStatsAccount() {
             'Content-Type': 'application/json'
         },
         body: {
-            clientId,
+            clientId: connectFlow.clientId,
             clientLabel: STATS_CONFIG.clientLabel,
             code
         }
@@ -835,6 +869,7 @@ function disconnectStatsAccount() {
 
 async function openStatsPanel() {
     const snapshot = getStatsStatusSnapshot();
+    let preparedConnectFlow = null;
     const buttons = [
         {label: UI_COPY.statsPanelClose, value: 'close', variant: 'secondary'}
     ];
@@ -843,7 +878,23 @@ async function openStatsPanel() {
         buttons.push({label: UI_COPY.statsPanelDisconnect, value: 'disconnect', variant: 'secondary'});
         buttons.push({label: UI_COPY.statsPanelOpenDashboard, value: 'dashboard', variant: 'primary'});
     } else {
-        buttons.push({label: UI_COPY.statsPanelConnect, value: 'connect', variant: 'primary'});
+        buttons.push({
+            label: UI_COPY.statsPanelConnect,
+            value: 'connect',
+            variant: 'primary',
+            beforeSubmit: () => {
+                preparedConnectFlow = prepareStatsConnectFlow();
+
+                try {
+                    openStatsConnectPopup(preparedConnectFlow.clientId);
+                } catch (error) {
+                    preparedConnectFlow = null;
+                    throw error;
+                }
+
+                return true;
+            }
+        });
     }
 
     const action = await ui.openModal({
@@ -855,7 +906,7 @@ async function openStatsPanel() {
 
     if (action === 'connect') {
         try {
-            await connectStatsAccount();
+            await connectStatsAccount(preparedConnectFlow);
         } catch (error) {
             console.error('Failed to connect stats:', error);
             await ui.alert(UI_COPY.errorTitle, error instanceof Error ? error.message : String(error));
@@ -1164,15 +1215,28 @@ class CollectionRoulette {
 }
 
 async function startScript() {
-    const shouldStart = await ui.confirm(
-        UI_COPY.startTitle,
-        MESSAGES.startScript,
-        UI_COPY.startConfirm,
-        UI_COPY.startCancel
-    );
+    while (true) {
+        const startAction = await ui.openModal({
+            title: UI_COPY.startTitle,
+            message: MESSAGES.startScript,
+            details: buildStatsPanelDetails(),
+            buttons: [
+                {label: UI_COPY.startCancel, value: 'cancel', variant: 'secondary'},
+                {label: UI_COPY.statsButton, value: 'stats', variant: 'secondary'},
+                {label: UI_COPY.startConfirm, value: 'start', variant: 'primary'}
+            ]
+        });
 
-    if (!shouldStart) {
-        return;
+        if (startAction === 'cancel' || startAction === null) {
+            return;
+        }
+
+        if (startAction === 'stats') {
+            await openStatsPanel();
+            continue;
+        }
+
+        break;
     }
 
     const targetCategoryInput = await requestTargetCategory();
