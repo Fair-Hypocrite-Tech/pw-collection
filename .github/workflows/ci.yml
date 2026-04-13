@@ -26,8 +26,13 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Build mock userscript
+        run: node scripts/build-mock-userscript.cjs
+
       - name: Validate userscript syntax
-        run: node --check collection.user.js
+        run: |
+          node --check collection.user.js
+          node --check collection.mock.user.js
 
       - name: Run helper tests
         run: node --test tests/*.test.cjs
