@@ -86,7 +86,21 @@ Current behavior notes:
 Project structure:
 
 - [collection.user.js](./collection.user.js): the userscript itself.
+- [collection.mock.user.js](./collection.mock.user.js): generated dev userscript for the mock collection testbed.
+- [scripts/mock-userscript.config.json](./scripts/mock-userscript.config.json): mock userscript environment and text overrides.
 - [README.md](./README.md): project documentation.
+
+Mock testbed:
+
+1. Open `https://dev.pw-collection-stats.fairhypocrite.com/mock-collection`
+2. Install or paste `collection.mock.user.js`
+3. The mock version talks only to the dev stats backend and mock collection API.
+
+Regenerating the mock userscript:
+
+```powershell
+node scripts/build-mock-userscript.cjs
+```
 
 Feedback:
 
