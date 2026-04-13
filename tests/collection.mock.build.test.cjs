@@ -1,0 +1,22 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const mockScriptPath = path.join(__dirname, '..', 'collection.mock.user.js');
+const mockScriptSource = fs.readFileSync(mockScriptPath, 'utf8');
+
+test('mock userscript targets the dev mock page and dev stats backend', () => {
+    assert.match(mockScriptSource, /@name\s+PW collection bot mock dev/);
+    assert.match(mockScriptSource, /@match\s+https:\/\/dev\.pw-collection-stats\.fairhypocrite\.com\/mock-collection\*/);
+    assert.match(mockScriptSource, /const BASE_URL = 'https:\/\/dev\.pw-collection-stats\.fairhypocrite\.com\/api\/v1\/mock-collection';/);
+    assert.match(mockScriptSource, /storagePrefix: 'pwc_mock_stats'/);
+    assert.match(mockScriptSource, /connectOrigin: 'https:\/\/dev\.pw-collection-stats\.fairhypocrite\.com'/);
+});
+
+test('mock userscript uses mock-compatible collection API calls', () => {
+    assert.match(mockScriptSource, /await fetch\(TURN_URL, \{method: 'POST'\}\);/);
+    assert.match(mockScriptSource, /await fetch\(`\$\{BASE_URL\}\/get-item`, \{/);
+    assert.match(mockScriptSource, /await fetch\(`\$\{BASE_URL\}\/get-next`, \{/);
+    assert.match(mockScriptSource, /return typeof GM_xmlhttpRequest === 'function' \? 'mock-tampermonkey' : 'mock-browser-console';/);
+});
