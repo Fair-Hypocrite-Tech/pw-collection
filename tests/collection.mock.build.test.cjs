@@ -20,3 +20,12 @@ test('mock userscript uses mock-compatible collection API calls', () => {
     assert.match(mockScriptSource, /await fetch\(`\$\{BASE_URL\}\/get-next`, \{/);
     assert.match(mockScriptSource, /return typeof GM_xmlhttpRequest === 'function' \? 'mock-tampermonkey' : 'mock-browser-console';/);
 });
+
+test('mock userscript includes dev-only policy integration for the mock testbed', () => {
+    assert.match(mockScriptSource, /const MOCK_POLICY_CONFIG = \{/);
+    assert.match(mockScriptSource, /function getMockPolicyFromPage\(\)/);
+    assert.match(mockScriptSource, /document\.getElementById\('mock-policy-mode'\)/);
+    assert.match(mockScriptSource, /async handleCategoryAboveTarget\(category\)/);
+    assert.match(mockScriptSource, /formatMockPolicyDetails\(getMockPolicyFromPage\(\)\)/);
+    assert.match(mockScriptSource, /MOCK_POLICY_CONFIG\.toastTargetMismatch/);
+});

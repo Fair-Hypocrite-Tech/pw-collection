@@ -18,6 +18,21 @@
     "pageLoaded": "Mock page fully loaded!",
     "readyToastMessage": "Mock script interface is ready for test runs.",
     "scriptSourceTampermonkey": "mock-tampermonkey",
-    "scriptSourceBrowser": "mock-browser-console"
+    "scriptSourceBrowser": "mock-browser-console",
+    "policy": {
+      "defaultMode": "",
+      "defaultPrimaryTarget": 3,
+      "defaultSecondaryTarget": 5,
+      "defaultOnAboveSecondary": "stop",
+      "toastTitle": "Mock policy",
+      "toastLoaded": "Mock policy loaded from the testbed form.",
+      "toastDefaulted": "Mock policy controls were not configured, using strict target-only flow.",
+      "toastTargetMismatch": "Primary target from the mock policy does not match the selected target category. Using the selected target for runtime flow.",
+      "detailsNone": "Mode: strict target-only flow",
+      "detailsMode": "Mode: ",
+      "detailsPrimary": "Primary target: ",
+      "detailsSecondary": "Secondary target: ",
+      "detailsAbove": "Above secondary: "
+    }
   }
 }
