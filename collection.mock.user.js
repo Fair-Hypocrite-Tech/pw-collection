@@ -135,6 +135,22 @@ const UI_STYLE = `
 @media (max-width:640px){.pwc-actions{left:12px;right:12px;bottom:12px;align-items:stretch}.pwc-action{width:100%}.pwc-toasts{left:12px;right:12px;top:12px}.pwc-toast{max-width:none}.pwc-modal-layer{padding:14px}.pwc-modal__content{padding:22px 18px}.pwc-modal__title{font-size:26px}.pwc-modal__actions{flex-direction:column}.pwc-modal__button{width:100%}}
 `;
 
+const MOCK_POLICY_CONFIG = {
+    "defaultMode": "",
+    "defaultPrimaryTarget": 3,
+    "defaultSecondaryTarget": 5,
+    "defaultOnAboveSecondary": "stop",
+    "toastTitle": "Mock policy",
+    "toastLoaded": "Mock policy loaded from the testbed form.",
+    "toastDefaulted": "Mock policy controls were not configured, using strict target-only flow.",
+    "toastTargetMismatch": "Primary target from the mock policy does not match the selected target category. Using the selected target for runtime flow.",
+    "detailsNone": "Mode: strict target-only flow",
+    "detailsMode": "Mode: ",
+    "detailsPrimary": "Primary target: ",
+    "detailsSecondary": "Secondary target: ",
+    "detailsAbove": "Above secondary: "
+};
+
 const STORAGE_KEYS = {
     clientId: `${STATS_CONFIG.storagePrefix}_client_id`,
     authState: `${STATS_CONFIG.storagePrefix}_auth_state`
@@ -215,6 +231,58 @@ async function requestTargetCategory() {
         cancelText: UI_COPY.targetCancel,
         validate: value => isValidTargetCategory(value) ? true : MESSAGES.invalidTargetCategory
     });
+}
+
+function normalizeMockPolicy(rawPolicy) {
+    if (!rawPolicy || !rawPolicy.mode) {
+        return null;
+    }
+
+    const primaryTarget = parseInt(rawPolicy.primaryTarget, 10);
+    const secondaryTarget = parseInt(rawPolicy.secondaryTarget, 10);
+    const onAboveSecondary = String(rawPolicy.onAboveSecondary || MOCK_POLICY_CONFIG.defaultOnAboveSecondary);
+
+    if (!Number.isInteger(primaryTarget) || primaryTarget < 1 || primaryTarget > 6) {
+        return null;
+    }
+
+    if (!Number.isInteger(secondaryTarget) || secondaryTarget < 1 || secondaryTarget > 6 || secondaryTarget <= primaryTarget) {
+        return null;
+    }
+
+    return {
+        mode: String(rawPolicy.mode),
+        primaryTarget,
+        secondaryTarget,
+        onAboveSecondary
+    };
+}
+
+function getMockPolicyFromPage() {
+    const modeNode = document.getElementById('mock-policy-mode');
+    if (!modeNode) {
+        return null;
+    }
+
+    return normalizeMockPolicy({
+        mode: modeNode.value || MOCK_POLICY_CONFIG.defaultMode,
+        primaryTarget: document.getElementById('mock-policy-primary')?.value || MOCK_POLICY_CONFIG.defaultPrimaryTarget,
+        secondaryTarget: document.getElementById('mock-policy-secondary')?.value || MOCK_POLICY_CONFIG.defaultSecondaryTarget,
+        onAboveSecondary: document.getElementById('mock-policy-above')?.value || MOCK_POLICY_CONFIG.defaultOnAboveSecondary
+    });
+}
+
+function formatMockPolicyDetails(policy) {
+    if (!policy) {
+        return MOCK_POLICY_CONFIG.detailsNone;
+    }
+
+    return [
+        MOCK_POLICY_CONFIG.detailsMode + policy.mode,
+        MOCK_POLICY_CONFIG.detailsPrimary + policy.primaryTarget,
+        MOCK_POLICY_CONFIG.detailsSecondary + policy.secondaryTarget,
+        MOCK_POLICY_CONFIG.detailsAbove + policy.onAboveSecondary
+    ].join('\n');
 }
 
 function getScriptSource() {
@@ -936,11 +1004,12 @@ function initStatsControls() {
 }
 
 class CollectionRoulette {
-    constructor(targetCategory, debugModeOn) {
+    constructor(targetCategory, debugModeOn, policy = null) {
         this.currentState = createEmptyState();
         this.quantityStats = createEmptyStats();
         this.targetCategory = targetCategory;
         this.debugModeOn = debugModeOn;
+        this.policy = policy;
         this.startTime = performance.now();
         this.startedAt = new Date();
         this.statsSent = false;
@@ -1013,8 +1082,53 @@ class CollectionRoulette {
             return false;
         }
 
-        await this.sayTargetOverachieved();
-        return true;
+        return this.handleCategoryAboveTarget(category);
+    }
+
+    async handleCategoryAboveTarget(category) {
+        if (!this.policy || !this.policy.mode || this.policy.mode === 'strict') {
+            await this.sayTargetOverachieved();
+            return true;
+        }
+
+        if (category <= this.policy.secondaryTarget) {
+            switch (this.policy.mode) {
+            case 'claim-up-to-secondary':
+                await this.collectReward(category);
+                this.updateCurrentState(await this.loadCurrentState());
+                return false;
+            case 'push-to-secondary':
+            case 'stop-above-secondary':
+                if (category < this.policy.secondaryTarget) {
+                    await this.promoteCategory(category);
+                } else {
+                    await this.collectReward(category);
+                    this.updateCurrentState(await this.loadCurrentState());
+                }
+                return false;
+            default:
+                await this.sayTargetOverachieved();
+                return true;
+            }
+        }
+
+        switch (this.policy.onAboveSecondary) {
+        case 'claim':
+            await this.collectReward(category);
+            this.updateCurrentState(await this.loadCurrentState());
+            return false;
+        case 'promote_once':
+            if (category >= TOP_CATEGORY) {
+                await this.sayTargetOverachieved();
+                return true;
+            }
+            await this.promoteCategory(category);
+            return false;
+        case 'stop':
+        default:
+            await this.sayTargetOverachieved();
+            return true;
+        }
     }
 
     isCategoryComplete(category) {
@@ -1227,7 +1341,7 @@ async function startScript() {
         const startAction = await ui.openModal({
             title: UI_COPY.startTitle,
             message: MESSAGES.startScript,
-            details: buildStatsPanelDetails(),
+            details: [buildStatsPanelDetails(), formatMockPolicyDetails(getMockPolicyFromPage())].join('\n\n'),
             buttons: [
                 {label: UI_COPY.startCancel, value: 'cancel', variant: 'secondary'},
                 {label: UI_COPY.statsButton, value: 'stats', variant: 'secondary'},
@@ -1255,8 +1369,20 @@ async function startScript() {
         return;
     }
 
+    const targetCategory = parseInt(targetCategoryInput, 10);
+    const policy = getMockPolicyFromPage();
     const debugModeOn = false;
-    const roulette = new CollectionRoulette(parseInt(targetCategoryInput, 10), debugModeOn);
+    const roulette = new CollectionRoulette(targetCategory, debugModeOn, policy);
+
+    if (policy && policy.primaryTarget !== targetCategory) {
+        ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastTargetMismatch, 'info', 4200);
+        roulette.policy = {...policy, primaryTarget: targetCategory};
+    } else if (policy) {
+        ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastLoaded, 'info', 2600);
+    } else {
+        ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastDefaulted, 'info', 2600);
+    }
+
     await roulette.process();
 }
 
