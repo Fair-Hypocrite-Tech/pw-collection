@@ -33,20 +33,28 @@ output = replaceOnce(output, '// @version      2024.12.27', `// @version      ${
 output = replaceOnce(output, '// @description  Automates the Perfect World "Collection" minigame flow', `// @description  ${config.meta.description}`);
 output = replaceOnce(output, '// @updateURL    https://github.com/FairHypo/pw-collection/raw/main/collection.user.js', `// @updateURL    ${config.meta.updateUrl}`);
 output = replaceOnce(output, '// @downloadURL  https://github.com/FairHypo/pw-collection/raw/main/collection.user.js', `// @downloadURL  ${config.meta.downloadUrl}`);
-output = replaceOnce(output, '// @match        https://pwonline.ru/minigames.php?game=collection&doo=display*', `// @match        ${config.meta.match}`);
-output = replaceOnce(output, '// @connect      pw-collection-stats.fairhypocrite.com', `// @connect      ${config.meta.connect}`);
+output = replaceOnce(
+    output,
+    '// @match        https://pwonline.ru/minigames.php?game=collection&doo=display*',
+    config.meta.matches.map(match => `// @match        ${match}`).join('\n')
+);
+output = replaceOnce(
+    output,
+    '// @connect      pw-collection-stats.fairhypocrite.com',
+    config.meta.connectHosts.map(host => `// @connect      ${host}`).join('\n')
+);
 
 output = replaceOnce(output, "const SCRIPT_VERSION = '2024.12.27';", `const SCRIPT_VERSION = '${config.script.version}';`);
-output = replaceOnce(output, "const BASE_URL = 'https://pwonline.ru/minigames.php?game=collection';", `const BASE_URL = '${config.script.baseUrl}';`);
+output = replaceOnce(output, "const BASE_URL = 'https://pwonline.ru/minigames.php?game=collection';", "const MOCK_ORIGIN = window.location.origin;\nconst BASE_URL = `${MOCK_ORIGIN}/api/v1/mock-collection`;");
 output = replaceOnce(output, "const INFO_URL = `${BASE_URL}&doo=info`;", "const INFO_URL = `${BASE_URL}/info`;");
 output = replaceOnce(output, "const TURN_URL = `${BASE_URL}&doo=turn`;", "const TURN_URL = `${BASE_URL}/turn`;");
-output = replaceOnce(output, "    baseUrl: 'https://pw-collection-stats.fairhypocrite.com',", `    baseUrl: '${config.script.statsBaseUrl}',`);
-output = replaceOnce(output, "    endpoint: 'https://pw-collection-stats.fairhypocrite.com/v1/stats',", `    endpoint: '${config.script.statsBaseUrl}/v1/stats',`);
-output = replaceOnce(output, "    connectPage: 'https://pw-collection-stats.fairhypocrite.com/connect',", `    connectPage: '${config.script.statsBaseUrl}/connect',`);
-output = replaceOnce(output, "    connectCompleteEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/connect/complete',", `    connectCompleteEndpoint: '${config.script.statsBaseUrl}/api/v1/connect/complete',`);
-output = replaceOnce(output, "    refreshEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/auth/refresh',", `    refreshEndpoint: '${config.script.statsBaseUrl}/api/v1/auth/refresh',`);
-output = replaceOnce(output, "    dashboardUrl: 'https://pw-collection-stats.fairhypocrite.com/dashboard',", `    dashboardUrl: '${config.script.statsBaseUrl}/dashboard',`);
-output = replaceOnce(output, "    connectOrigin: 'https://pw-collection-stats.fairhypocrite.com',", `    connectOrigin: '${config.script.statsBaseUrl}',`);
+output = replaceOnce(output, "    baseUrl: 'https://pw-collection-stats.fairhypocrite.com',", "    baseUrl: MOCK_ORIGIN,");
+output = replaceOnce(output, "    endpoint: 'https://pw-collection-stats.fairhypocrite.com/v1/stats',", "    endpoint: `${MOCK_ORIGIN}/v1/stats`,");
+output = replaceOnce(output, "    connectPage: 'https://pw-collection-stats.fairhypocrite.com/connect',", "    connectPage: `${MOCK_ORIGIN}/connect`,");
+output = replaceOnce(output, "    connectCompleteEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/connect/complete',", "    connectCompleteEndpoint: `${MOCK_ORIGIN}/api/v1/connect/complete`,");
+output = replaceOnce(output, "    refreshEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/auth/refresh',", "    refreshEndpoint: `${MOCK_ORIGIN}/api/v1/auth/refresh`,");
+output = replaceOnce(output, "    dashboardUrl: 'https://pw-collection-stats.fairhypocrite.com/dashboard',", "    dashboardUrl: `${MOCK_ORIGIN}/dashboard`,");
+output = replaceOnce(output, "    connectOrigin: 'https://pw-collection-stats.fairhypocrite.com',", "    connectOrigin: MOCK_ORIGIN,");
 output = replaceOnce(output, "    storagePrefix: 'pwc_stats',", `    storagePrefix: '${config.script.storagePrefix}',`);
 output = replaceOnce(output, "    clientLabel: 'Tampermonkey browser',", `    clientLabel: '${config.script.clientLabel}',`);
 output = replaceRegex(output, /pageLoaded:\s*'[^']*',/, `pageLoaded: ${JSON.stringify(config.script.pageLoaded)},`);

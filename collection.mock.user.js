@@ -7,16 +7,19 @@
 // @updateURL    https://github.com/Fair-Hypocrite-Tech/pw-collection/raw/main/collection.mock.user.js
 // @downloadURL  https://github.com/Fair-Hypocrite-Tech/pw-collection/raw/main/collection.mock.user.js
 // @match        https://dev.pw-collection-stats.fairhypocrite.com/mock-collection*
+// @match        https://pw-collection-stats.fairhypocrite.com/mock-collection*
 // @icon         https://pwonline.ru/favicon.ico
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @connect      dev.pw-collection-stats.fairhypocrite.com
+// @connect      pw-collection-stats.fairhypocrite.com
 // ==/UserScript==
 
 const SCRIPT_VERSION = '2024.12.27-mock';
-const BASE_URL = 'https://dev.pw-collection-stats.fairhypocrite.com/api/v1/mock-collection';
+const MOCK_ORIGIN = window.location.origin;
+const BASE_URL = `${MOCK_ORIGIN}/api/v1/mock-collection`;
 const INFO_URL = `${BASE_URL}/info`;
 const TURN_URL = `${BASE_URL}/turn`;
 const CATEGORY_KEYS = [1, 2, 3, 4, 5, 6];
@@ -25,13 +28,13 @@ const DEFAULT_CATEGORY_LIMIT = 5;
 const TOP_CATEGORY_LIMIT = 10;
 const STATS_CONFIG = {
     enabled: true,
-    baseUrl: 'https://dev.pw-collection-stats.fairhypocrite.com',
-    endpoint: 'https://dev.pw-collection-stats.fairhypocrite.com/v1/stats',
-    connectPage: 'https://dev.pw-collection-stats.fairhypocrite.com/connect',
-    connectCompleteEndpoint: 'https://dev.pw-collection-stats.fairhypocrite.com/api/v1/connect/complete',
-    refreshEndpoint: 'https://dev.pw-collection-stats.fairhypocrite.com/api/v1/auth/refresh',
-    dashboardUrl: 'https://dev.pw-collection-stats.fairhypocrite.com/dashboard',
-    connectOrigin: 'https://dev.pw-collection-stats.fairhypocrite.com',
+    baseUrl: MOCK_ORIGIN,
+    endpoint: `${MOCK_ORIGIN}/v1/stats`,
+    connectPage: `${MOCK_ORIGIN}/connect`,
+    connectCompleteEndpoint: `${MOCK_ORIGIN}/api/v1/connect/complete`,
+    refreshEndpoint: `${MOCK_ORIGIN}/api/v1/auth/refresh`,
+    dashboardUrl: `${MOCK_ORIGIN}/dashboard`,
+    connectOrigin: MOCK_ORIGIN,
     storagePrefix: 'pwc_mock_stats',
     clientLabel: 'Tampermonkey mock browser',
     connectMessageType: 'pwc-connect-code',

@@ -6,12 +6,14 @@ const path = require('node:path');
 const mockScriptPath = path.join(__dirname, '..', 'collection.mock.user.js');
 const mockScriptSource = fs.readFileSync(mockScriptPath, 'utf8');
 
-test('mock userscript targets the dev mock page and dev stats backend', () => {
+test('mock userscript targets both mock pages and uses the current mock origin', () => {
     assert.match(mockScriptSource, /@name\s+PW collection bot mock dev/);
     assert.match(mockScriptSource, /@match\s+https:\/\/dev\.pw-collection-stats\.fairhypocrite\.com\/mock-collection\*/);
-    assert.match(mockScriptSource, /const BASE_URL = 'https:\/\/dev\.pw-collection-stats\.fairhypocrite\.com\/api\/v1\/mock-collection';/);
+    assert.match(mockScriptSource, /@match\s+https:\/\/pw-collection-stats\.fairhypocrite\.com\/mock-collection\*/);
+    assert.match(mockScriptSource, /const MOCK_ORIGIN = window\.location\.origin;/);
+    assert.match(mockScriptSource, /const BASE_URL = `\$\{MOCK_ORIGIN\}\/api\/v1\/mock-collection`;/);
     assert.match(mockScriptSource, /storagePrefix: 'pwc_mock_stats'/);
-    assert.match(mockScriptSource, /connectOrigin: 'https:\/\/dev\.pw-collection-stats\.fairhypocrite\.com'/);
+    assert.match(mockScriptSource, /connectOrigin: MOCK_ORIGIN/);
 });
 
 test('mock userscript uses mock-compatible collection API calls', () => {
