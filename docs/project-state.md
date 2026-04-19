@@ -25,6 +25,8 @@ Implemented capabilities:
 - Move new user-visible text into explicit text/config layers.
 - Improve observability and manual testing without changing live gameplay behavior casually.
 - Keep stats and future advanced behavior optional unless explicitly approved.
+- For stats-connected users, remember previously selected policy/preset choices and rank preferred presets first on later script launches.
+- Keep future preset UI lightweight: for a selected primary category, show only a few clear higher-category behaviors rather than a large advanced settings surface.
 
 ## Known Constraints
 
@@ -37,6 +39,7 @@ Implemented capabilities:
 
 - Expand mock policies for higher-than-target category handling.
 - Improve mock testbed observability and run logs.
+- After mock/backend preset work is stable, focus on userscript UX for simple preset selection and preference ordering.
 - Continue extracting/localizing UI strings.
 - Add tests around any new policy behavior.
 - Keep production and mock flows clearly separated.
