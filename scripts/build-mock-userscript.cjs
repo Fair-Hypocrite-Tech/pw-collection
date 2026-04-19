@@ -53,6 +53,7 @@ output = replaceOnce(output, "    endpoint: 'https://pw-collection-stats.fairhyp
 output = replaceOnce(output, "    connectPage: 'https://pw-collection-stats.fairhypocrite.com/connect',", "    connectPage: `${MOCK_ORIGIN}/connect`,");
 output = replaceOnce(output, "    connectCompleteEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/connect/complete',", "    connectCompleteEndpoint: `${MOCK_ORIGIN}/api/v1/connect/complete`,");
 output = replaceOnce(output, "    refreshEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/auth/refresh',", "    refreshEndpoint: `${MOCK_ORIGIN}/api/v1/auth/refresh`,");
+output = replaceOnce(output, "    preferencesEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/script/preferences',", "    preferencesEndpoint: `${MOCK_ORIGIN}/api/v1/script/preferences`,");
 output = replaceOnce(output, "    dashboardUrl: 'https://pw-collection-stats.fairhypocrite.com/dashboard',", "    dashboardUrl: `${MOCK_ORIGIN}/dashboard`,");
 output = replaceOnce(output, "    connectOrigin: 'https://pw-collection-stats.fairhypocrite.com',", "    connectOrigin: MOCK_ORIGIN,");
 output = replaceOnce(output, "    storagePrefix: 'pwc_stats',", `    storagePrefix: '${config.script.storagePrefix}',`);

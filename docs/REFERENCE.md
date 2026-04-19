@@ -62,6 +62,7 @@ Mock network permissions:
   Required count for category `6`.
 - `STATS_CONFIG`
   Optional remote stats/connect/auth configuration.
+  Includes stats ingest, connect, refresh, dashboard, and script preference endpoints.
 - `DEFAULT_COLLECTION_PRESETS`
   Lightweight production preset list shown before launch.
 - `POLICY_MODES`
@@ -86,6 +87,8 @@ Any change around these calls requires extra care.
 
 - `POST /v1/stats`
   Sends final run stats.
+- `GET|POST /api/v1/script/preferences`
+  Loads or saves the connected client's preferred preset with bearer userscript-session auth.
 - `POST /api/v1/connect/complete`
   Exchanges a one-time browser connect code for script tokens.
 - `POST /api/v1/auth/refresh`
