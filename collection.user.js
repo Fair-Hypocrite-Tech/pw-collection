@@ -137,8 +137,54 @@ const UI_STYLE = `
 
 const STORAGE_KEYS = {
     clientId: `${STATS_CONFIG.storagePrefix}_client_id`,
-    authState: `${STATS_CONFIG.storagePrefix}_auth_state`
+    authState: `${STATS_CONFIG.storagePrefix}_auth_state`,
+    preferredPreset: `${STATS_CONFIG.storagePrefix}_preferred_preset`
 };
+
+const POLICY_MODES = {
+    strict: 'strict',
+    claimUpToSecondary: 'claim-up-to-secondary'
+};
+
+const ABOVE_SECONDARY_ACTIONS = {
+    stop: 'stop'
+};
+
+const DEFAULT_COLLECTION_PRESETS = [
+    {
+        id: 'target-3-claim-4-5',
+        targetCategory: 3,
+        title: '\u0421\u043e\u0431\u0438\u0440\u0430\u0442\u044c 3, 4-5 \u0437\u0430\u0431\u0438\u0440\u0430\u0442\u044c',
+        description: '\u041e\u0441\u043d\u043e\u0432\u043d\u0430\u044f \u0446\u0435\u043b\u044c - 3 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f. \u0415\u0441\u043b\u0438 \u0441\u043e\u0431\u0440\u0430\u043b\u0438\u0441\u044c 4 \u0438\u043b\u0438 5, \u0431\u043e\u0442 \u0437\u0430\u0431\u0435\u0440\u0435\u0442 \u043f\u0440\u0438\u0437.',
+        policy: {
+            mode: POLICY_MODES.claimUpToSecondary,
+            secondaryTarget: 5,
+            onAboveSecondary: ABOVE_SECONDARY_ACTIONS.stop
+        }
+    },
+    {
+        id: 'target-5',
+        targetCategory: 5,
+        title: '\u0421\u043e\u0431\u0438\u0440\u0430\u0442\u044c 5',
+        description: '\u0421\u043e\u0431\u0438\u0440\u0430\u0435\u043c 5 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e. 6 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u0441\u0430\u043c\u0430 \u043d\u0435 \u0432\u044b\u043f\u0430\u0434\u0430\u0435\u0442.',
+        policy: {
+            mode: POLICY_MODES.strict,
+            secondaryTarget: 5,
+            onAboveSecondary: ABOVE_SECONDARY_ACTIONS.stop
+        }
+    },
+    {
+        id: 'target-6',
+        targetCategory: 6,
+        title: '\u0421\u043e\u0431\u0438\u0440\u0430\u0442\u044c 6',
+        description: '\u0421\u043e\u0431\u0438\u0440\u0430\u0435\u043c \u0432\u0435\u0440\u0445\u043d\u044e\u044e 6 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e. \u0412\u044b\u0448\u0435 \u0435\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0439 \u043d\u0435\u0442.',
+        policy: {
+            mode: POLICY_MODES.strict,
+            secondaryTarget: 6,
+            onAboveSecondary: ABOVE_SECONDARY_ACTIONS.stop
+        }
+    }
+];
 
 Object.assign(MESSAGES, {
     statsConnected: 'Статистика подключена к вашему кабинету.',
@@ -163,6 +209,15 @@ Object.assign(UI_COPY, {
     statsPanelSessionLine: 'Сессия активна до: ',
     statsPanelClientLine: 'Client ID: ',
     statsPanelInstructions: 'После подключения userscript сможет отправлять итоговую статистику автоматически, а в кабинете появится история запусков.'
+});
+
+Object.assign(UI_COPY, {
+    presetTitle: '\u0412\u044b\u0431\u043e\u0440 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044f',
+    presetMessage: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435, \u043a\u0430\u043a\u0443\u044e \u0446\u0435\u043b\u044c \u0441\u043e\u0431\u0438\u0440\u0430\u0442\u044c. \u041f\u0440\u043e\u0448\u043b\u044b\u0439 \u0432\u044b\u0431\u043e\u0440 \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043a\u0430\u0437\u0430\u043d \u043f\u0435\u0440\u0432\u044b\u043c.',
+    presetDetailsIntro: '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0438:',
+    presetManual: '\u0414\u0440\u0443\u0433\u0430\u044f \u0446\u0435\u043b\u044c',
+    presetCancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
+    launchPresetLine: '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439: '
 });
 
 function delay(ms) {
@@ -215,6 +270,122 @@ async function requestTargetCategory() {
         cancelText: UI_COPY.targetCancel,
         validate: value => isValidTargetCategory(value) ? true : MESSAGES.invalidTargetCategory
     });
+}
+
+function findPresetById(presetId, presets = DEFAULT_COLLECTION_PRESETS) {
+    return presets.find(preset => preset.id === presetId) || null;
+}
+
+function normalizePresetChoice(rawPreset) {
+    if (!rawPreset || !isValidTargetCategory(rawPreset.targetCategory)) {
+        return null;
+    }
+
+    return {
+        id: String(rawPreset.id || `custom-${rawPreset.targetCategory}`),
+        title: String(rawPreset.title || `${rawPreset.targetCategory}`),
+        description: String(rawPreset.description || ''),
+        targetCategory: parseInt(rawPreset.targetCategory, 10),
+        policy: rawPreset.policy ? {...rawPreset.policy} : null
+    };
+}
+
+function sortPresetsByPreference(presets, preferredPresetId) {
+    const normalizedPresets = presets
+        .map(normalizePresetChoice)
+        .filter(Boolean);
+
+    if (!preferredPresetId) {
+        return normalizedPresets;
+    }
+
+    return normalizedPresets.sort((left, right) => {
+        if (left.id === preferredPresetId) return -1;
+        if (right.id === preferredPresetId) return 1;
+        return 0;
+    });
+}
+
+function getStoredPreferredPreset() {
+    const storedValue = getStoredValue(STORAGE_KEYS.preferredPreset, '');
+    const trimmedValue = String(storedValue || '').trim();
+
+    if (trimmedValue.startsWith('{')) {
+        const storedPreset = normalizePresetChoice(parseStoredJSON(trimmedValue));
+        if (storedPreset) {
+            return storedPreset;
+        }
+    }
+
+    return findPresetById(trimmedValue);
+}
+
+function savePreferredPreset(preset) {
+    const normalizedPreset = normalizePresetChoice(preset);
+    if (!normalizedPreset) {
+        return;
+    }
+
+    setStoredValue(STORAGE_KEYS.preferredPreset, JSON.stringify(normalizedPreset));
+}
+
+function formatPresetDetails(presets) {
+    return [
+        UI_COPY.presetDetailsIntro,
+        ...presets.map((preset, index) => `${index + 1}. ${preset.title}\n${preset.description}`)
+    ].join('\n\n');
+}
+
+async function requestCollectionPreset() {
+    const preferredPreset = getStoredPreferredPreset();
+    const availablePresets = [...DEFAULT_COLLECTION_PRESETS];
+    if (preferredPreset && !findPresetById(preferredPreset.id, availablePresets)) {
+        availablePresets.unshift(preferredPreset);
+    }
+
+    const presets = sortPresetsByPreference(availablePresets, preferredPreset?.id || '');
+    const buttons = [
+        {label: UI_COPY.presetCancel, value: null, variant: 'secondary'},
+        {label: UI_COPY.presetManual, value: 'manual', variant: 'secondary'},
+        ...presets.map(preset => ({
+            label: preset.title,
+            value: preset.id,
+            variant: 'primary'
+        }))
+    ];
+
+    const selectedPresetId = await ui.openModal({
+        title: UI_COPY.presetTitle,
+        message: UI_COPY.presetMessage,
+        details: formatPresetDetails(presets),
+        buttons
+    });
+
+    if (selectedPresetId === null) {
+        return null;
+    }
+
+    if (selectedPresetId === 'manual') {
+        const targetCategoryInput = await requestTargetCategory();
+        if (!isValidTargetCategory(targetCategoryInput)) {
+            return null;
+        }
+
+        const targetCategory = parseInt(targetCategoryInput, 10);
+        return normalizePresetChoice({
+            id: `manual-${targetCategory}`,
+            title: `${UI_COPY.targetLabel} ${targetCategory}`,
+            targetCategory,
+            policy: {
+                mode: POLICY_MODES.strict,
+                secondaryTarget: targetCategory,
+                onAboveSecondary: ABOVE_SECONDARY_ACTIONS.stop
+            }
+        });
+    }
+
+    const selectedPreset = findPresetById(selectedPresetId, presets);
+    return normalizePresetChoice(selectedPreset);
 }
 
 function getScriptSource() {
@@ -936,11 +1107,13 @@ function initStatsControls() {
 }
 
 class CollectionRoulette {
-    constructor(targetCategory, debugModeOn) {
+    constructor(targetCategory, debugModeOn, preset = null) {
         this.currentState = createEmptyState();
         this.quantityStats = createEmptyStats();
         this.targetCategory = targetCategory;
         this.debugModeOn = debugModeOn;
+        this.preset = normalizePresetChoice(preset) || null;
+        this.policy = this.preset?.policy || null;
         this.startTime = performance.now();
         this.startedAt = new Date();
         this.statsSent = false;
@@ -1001,6 +1174,24 @@ class CollectionRoulette {
 
         if (category === this.targetCategory) {
             await this.collectReward(this.targetCategory);
+            this.updateCurrentState(await this.loadCurrentState());
+            return false;
+        }
+
+        return this.handleCategoryAboveTarget(category);
+    }
+
+    async handleCategoryAboveTarget(category) {
+        if (!this.policy || this.policy.mode === POLICY_MODES.strict) {
+            await this.sayTargetOverachieved();
+            return true;
+        }
+
+        if (
+            this.policy.mode === POLICY_MODES.claimUpToSecondary
+            && category <= this.policy.secondaryTarget
+        ) {
+            await this.collectReward(category);
             this.updateCurrentState(await this.loadCurrentState());
             return false;
         }
@@ -1066,6 +1257,7 @@ class CollectionRoulette {
         return {
             clientId: getStatsClientId(),
             targetCategory: this.targetCategory,
+            presetId: this.preset?.id || '',
             startedAt: this.startedAt.toISOString(),
             finishedAt: new Date().toISOString(),
             durationMs: Math.floor(performance.now() - this.startTime),
@@ -1114,12 +1306,18 @@ class CollectionRoulette {
     }
 
     async checkCurrentTargetCategory() {
-        return ui.confirm(
-            UI_COPY.launchTitle,
-            MESSAGES.targetCategoryConfirmation(this.targetCategory),
-            UI_COPY.launchConfirm,
-            UI_COPY.launchCancel
-        );
+        const details = this.preset ? UI_COPY.launchPresetLine + this.preset.title : '';
+        const result = await ui.openModal({
+            title: UI_COPY.launchTitle,
+            message: MESSAGES.targetCategoryConfirmation(this.targetCategory),
+            details,
+            buttons: [
+                {label: UI_COPY.launchCancel, value: false, variant: 'secondary'},
+                {label: UI_COPY.launchConfirm, value: true, variant: 'primary'}
+            ]
+        });
+
+        return result === true;
     }
 
     updateCurrentState(newState) {
@@ -1239,16 +1437,14 @@ async function startScript() {
         break;
     }
 
-    const targetCategoryInput = await requestTargetCategory();
-    if (!isValidTargetCategory(targetCategoryInput)) {
-        if (targetCategoryInput !== null) {
-            await ui.alert(UI_COPY.errorTitle, MESSAGES.invalidTargetCategory);
-        }
+    const selectedPreset = await requestCollectionPreset();
+    if (!selectedPreset) {
         return;
     }
 
+    savePreferredPreset(selectedPreset);
     const debugModeOn = false;
-    const roulette = new CollectionRoulette(parseInt(targetCategoryInput, 10), debugModeOn);
+    const roulette = new CollectionRoulette(selectedPreset.targetCategory, debugModeOn, selectedPreset);
     await roulette.process();
 }
 

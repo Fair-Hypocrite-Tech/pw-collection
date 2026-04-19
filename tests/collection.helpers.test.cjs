@@ -60,16 +60,22 @@ function loadHelpers() {
         extractConst('DEFAULT_CATEGORY_LIMIT'),
         extractConst('TOP_CATEGORY_LIMIT'),
         extractConst('STATS_CONFIG'),
+        extractConst('POLICY_MODES'),
+        extractConst('ABOVE_SECONDARY_ACTIONS'),
+        extractConst('DEFAULT_COLLECTION_PRESETS'),
         extractFunction('createEmptyRows'),
         extractFunction('createEmptyState'),
         extractFunction('createEmptyStats'),
         extractFunction('getCategoryLimit'),
         extractFunction('isValidTargetCategory'),
+        extractFunction('findPresetById'),
+        extractFunction('normalizePresetChoice'),
+        extractFunction('sortPresetsByPreference'),
         extractFunction('isFutureTimestamp'),
         extractFunction('normalizeStatsAuthState'),
         extractFunction('hasUsableAccessToken'),
         extractFunction('canRefreshStatsSession'),
-        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG };'
+        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, sortPresetsByPreference, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
     ].join('\n\n');
 
     vm.runInNewContext(helperSource, sandbox);
@@ -121,6 +127,65 @@ test('isValidTargetCategory accepts only integer-like values from 1 to 6', () =>
     assert.equal(helpers.isValidTargetCategory('abc'), false);
     assert.equal(helpers.isValidTargetCategory(''), false);
     assert.equal(helpers.isValidTargetCategory(null), false);
+});
+
+test('default collection presets cover the most common target flows', () => {
+    assert.deepEqual(
+        normalize(helpers.DEFAULT_COLLECTION_PRESETS.map(preset => ({
+            id: preset.id,
+            targetCategory: preset.targetCategory,
+            mode: preset.policy.mode,
+            secondaryTarget: preset.policy.secondaryTarget
+        }))),
+        [
+            {
+                id: 'target-3-claim-4-5',
+                targetCategory: 3,
+                mode: 'claim-up-to-secondary',
+                secondaryTarget: 5
+            },
+            {
+                id: 'target-5',
+                targetCategory: 5,
+                mode: 'strict',
+                secondaryTarget: 5
+            },
+            {
+                id: 'target-6',
+                targetCategory: 6,
+                mode: 'strict',
+                secondaryTarget: 6
+            }
+        ]
+    );
+});
+
+test('sortPresetsByPreference moves the remembered preset first', () => {
+    const sorted = helpers.sortPresetsByPreference(helpers.DEFAULT_COLLECTION_PRESETS, 'target-6');
+
+    assert.equal(sorted[0].id, 'target-6');
+    assert.deepEqual(normalize(sorted.map(preset => preset.id).sort()), ['target-3-claim-4-5', 'target-5', 'target-6']);
+});
+
+test('normalizePresetChoice rejects invalid target categories', () => {
+    assert.equal(helpers.normalizePresetChoice({id: 'bad', targetCategory: 7}), null);
+    assert.equal(helpers.normalizePresetChoice(null), null);
+
+    assert.deepEqual(
+        normalize(helpers.normalizePresetChoice({
+            id: 'manual-4',
+            title: 'Manual 4',
+            targetCategory: '4',
+            policy: {mode: 'strict'}
+        })),
+        {
+            id: 'manual-4',
+            title: 'Manual 4',
+            description: '',
+            targetCategory: 4,
+            policy: {mode: 'strict'}
+        }
+    );
 });
 
 test('normalizeStatsAuthState keeps only complete auth payloads', () => {

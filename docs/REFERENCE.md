@@ -62,6 +62,10 @@ Mock network permissions:
   Required count for category `6`.
 - `STATS_CONFIG`
   Optional remote stats/connect/auth configuration.
+- `DEFAULT_COLLECTION_PRESETS`
+  Lightweight production preset list shown before launch.
+- `POLICY_MODES`
+  Runtime policy modes used by production presets.
 - `MESSAGES` and `UI_COPY`
   Production userscript text layers.
 - `MOCK_POLICY_CONFIG`
