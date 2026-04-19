@@ -81,6 +81,7 @@ Current behavior notes:
 
 - The default preset list covers the common target `3`, `5`, and `6` scenarios.
 - The last selected default or manual preset is remembered locally and shown first next time.
+- If stats are connected, the preferred preset is also synced through the stats backend and still falls back to local storage if sync fails.
 - The script continues working after collecting the selected target category.
 - If a category above the target becomes completed, the script stops and asks the user to decide what to do next.
 - Debug mode is currently disabled in normal usage.

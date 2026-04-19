@@ -30,12 +30,14 @@ const STATS_CONFIG = {
     connectPage: 'https://pw-collection-stats.fairhypocrite.com/connect',
     connectCompleteEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/connect/complete',
     refreshEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/auth/refresh',
+    preferencesEndpoint: 'https://pw-collection-stats.fairhypocrite.com/api/v1/script/preferences',
     dashboardUrl: 'https://pw-collection-stats.fairhypocrite.com/dashboard',
     connectOrigin: 'https://pw-collection-stats.fairhypocrite.com',
     storagePrefix: 'pwc_stats',
     clientLabel: 'Tampermonkey browser',
     connectMessageType: 'pwc-connect-code',
     connectTimeoutMs: 10 * 60 * 1000,
+    preferencesTimeoutMs: 2000,
     accessTokenGraceMs: 60 * 1000
 };
 
@@ -329,6 +331,15 @@ function savePreferredPreset(preset) {
     setStoredValue(STORAGE_KEYS.preferredPreset, JSON.stringify(normalizedPreset));
 }
 
+function buildPresetList(preferredPreset) {
+    const availablePresets = [...DEFAULT_COLLECTION_PRESETS];
+    if (preferredPreset && !findPresetById(preferredPreset.id, availablePresets)) {
+        availablePresets.unshift(preferredPreset);
+    }
+
+    return sortPresetsByPreference(availablePresets, preferredPreset?.id || '');
+}
+
 function formatPresetDetails(presets) {
     return [
         UI_COPY.presetDetailsIntro,
@@ -337,13 +348,8 @@ function formatPresetDetails(presets) {
 }
 
 async function requestCollectionPreset() {
-    const preferredPreset = getStoredPreferredPreset();
-    const availablePresets = [...DEFAULT_COLLECTION_PRESETS];
-    if (preferredPreset && !findPresetById(preferredPreset.id, availablePresets)) {
-        availablePresets.unshift(preferredPreset);
-    }
-
-    const presets = sortPresetsByPreference(availablePresets, preferredPreset?.id || '');
+    const preferredPreset = await getPreferredPresetForLaunch();
+    const presets = buildPresetList(preferredPreset);
     const buttons = [
         {label: UI_COPY.presetCancel, value: null, variant: 'secondary'},
         {label: UI_COPY.presetManual, value: 'manual', variant: 'secondary'},
@@ -490,6 +496,12 @@ function canRefreshStatsSession(authState, nowMs = Date.now()) {
         && authState.refreshToken
         && isFutureTimestamp(authState.refreshExpiresAt, nowMs)
     );
+}
+
+function timeoutAfter(ms, message) {
+    return new Promise((_, reject) => {
+        window.setTimeout(() => reject(new Error(message)), ms);
+    });
 }
 
 function loadStatsAuthState() {
@@ -642,6 +654,79 @@ async function ensureStatsAccessToken() {
         clearStatsAuthState();
         throw error;
     }
+}
+
+function buildScriptPreferencesUrl(clientId) {
+    const preferencesUrl = new URL(STATS_CONFIG.preferencesEndpoint);
+    preferencesUrl.searchParams.set('clientId', clientId);
+    return preferencesUrl.toString();
+}
+
+async function loadRemotePreferredPreset() {
+    if (!isStatsEnabled() || !STATS_CONFIG.preferencesEndpoint) {
+        return null;
+    }
+
+    const authState = await ensureStatsAccessToken();
+    if (!authState?.accessToken || !authState.clientId) {
+        return null;
+    }
+
+    const response = await Promise.race([
+        requestJson(buildScriptPreferencesUrl(authState.clientId), {
+            headers: {
+                Authorization: `Bearer ${authState.accessToken}`
+            }
+        }),
+        timeoutAfter(STATS_CONFIG.preferencesTimeoutMs, 'script preference request timed out')
+    ]);
+
+    return normalizePresetChoice(response?.preferredPreset);
+}
+
+async function saveRemotePreferredPreset(preset) {
+    const normalizedPreset = normalizePresetChoice(preset);
+    if (!normalizedPreset || !isStatsEnabled() || !STATS_CONFIG.preferencesEndpoint) {
+        return false;
+    }
+
+    const authState = await ensureStatsAccessToken();
+    if (!authState?.accessToken || !authState.clientId) {
+        return false;
+    }
+
+    await Promise.race([
+        requestJson(STATS_CONFIG.preferencesEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authState.accessToken}`
+            },
+            body: {
+                clientId: authState.clientId,
+                preferredPreset: normalizedPreset
+            }
+        }),
+        timeoutAfter(STATS_CONFIG.preferencesTimeoutMs, 'script preference save timed out')
+    ]);
+
+    return true;
+}
+
+async function getPreferredPresetForLaunch() {
+    const localPreset = getStoredPreferredPreset();
+
+    try {
+        const remotePreset = await loadRemotePreferredPreset();
+        if (remotePreset) {
+            savePreferredPreset(remotePreset);
+            return remotePreset;
+        }
+    } catch (error) {
+        console.warn('Failed to load remote preset preference:', error);
+    }
+
+    return localPreset;
 }
 
 async function sendStats(payload) {
@@ -1443,6 +1528,10 @@ async function startScript() {
     }
 
     savePreferredPreset(selectedPreset);
+    void saveRemotePreferredPreset(selectedPreset).catch(error => {
+        console.warn('Failed to save remote preset preference:', error);
+    });
+
     const debugModeOn = false;
     const roulette = new CollectionRoulette(selectedPreset.targetCategory, debugModeOn, selectedPreset);
     await roulette.process();

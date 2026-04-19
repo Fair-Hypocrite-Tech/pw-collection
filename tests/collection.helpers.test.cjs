@@ -71,11 +71,12 @@ function loadHelpers() {
         extractFunction('findPresetById'),
         extractFunction('normalizePresetChoice'),
         extractFunction('sortPresetsByPreference'),
+        extractFunction('buildPresetList'),
         extractFunction('isFutureTimestamp'),
         extractFunction('normalizeStatsAuthState'),
         extractFunction('hasUsableAccessToken'),
         extractFunction('canRefreshStatsSession'),
-        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, sortPresetsByPreference, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
+        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, sortPresetsByPreference, buildPresetList, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
     ].join('\n\n');
 
     vm.runInNewContext(helperSource, sandbox);
@@ -165,6 +166,19 @@ test('sortPresetsByPreference moves the remembered preset first', () => {
 
     assert.equal(sorted[0].id, 'target-6');
     assert.deepEqual(normalize(sorted.map(preset => preset.id).sort()), ['target-3-claim-4-5', 'target-5', 'target-6']);
+});
+
+test('buildPresetList keeps custom remembered presets available first', () => {
+    const customPreset = helpers.normalizePresetChoice({
+        id: 'manual-4',
+        title: 'Manual 4',
+        targetCategory: 4,
+        policy: {mode: 'strict', secondaryTarget: 4, onAboveSecondary: 'stop'}
+    });
+    const presets = helpers.buildPresetList(customPreset);
+
+    assert.equal(presets[0].id, 'manual-4');
+    assert.equal(presets.length, helpers.DEFAULT_COLLECTION_PRESETS.length + 1);
 });
 
 test('normalizePresetChoice rejects invalid target categories', () => {
