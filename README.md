@@ -64,7 +64,7 @@ How to use it:
    `https://pwonline.ru/minigames.php?game=collection&doo=display`
 2. Start the script with Tampermonkey or from the browser console.
 3. Confirm the launch.
-4. Enter the target category from `1` to `6`.
+4. Choose one of the suggested presets or use the manual target-category option.
 5. Wait for the script to finish.
 
 Installation:
@@ -79,6 +79,8 @@ Open the event page, paste the contents of `collection.user.js` into the browser
 
 Current behavior notes:
 
+- The default preset list covers the common target `3`, `5`, and `6` scenarios.
+- The last selected default or manual preset is remembered locally and shown first next time.
 - The script continues working after collecting the selected target category.
 - If a category above the target becomes completed, the script stops and asks the user to decide what to do next.
 - Debug mode is currently disabled in normal usage.

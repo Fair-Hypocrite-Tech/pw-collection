@@ -14,6 +14,8 @@ Implemented capabilities:
 - reward claim for the selected target category
 - stop/decision behavior for risky above-target states
 - in-page modal/toast UI instead of relying only on native alerts
+- lightweight preset selection before launch, including the common target 3/5/6 flows
+- local preference ordering for the last selected default or manual preset
 - optional remote stats connect/send flow
 - generated mock userscript for `/mock-collection`
 - CI checks for syntax, mock generation, and helper tests
@@ -25,8 +27,8 @@ Implemented capabilities:
 - Move new user-visible text into explicit text/config layers.
 - Improve observability and manual testing without changing live gameplay behavior casually.
 - Keep stats and future advanced behavior optional unless explicitly approved.
-- For stats-connected users, remember previously selected policy/preset choices and rank preferred presets first on later script launches.
-- Keep future preset UI lightweight: for a selected primary category, show only a few clear higher-category behaviors rather than a large advanced settings surface.
+- For stats-connected users, sync previously selected policy/preset choices to the stats backend and rank preferred presets first on later script launches.
+- Keep preset UI lightweight: default choices should stay focused on a few common scenarios, with advanced custom policy controls behind a later expandable section.
 
 ## Known Constraints
 
@@ -37,9 +39,8 @@ Implemented capabilities:
 
 ## Likely Next Work
 
-- Expand mock policies for higher-than-target category handling.
-- Improve mock testbed observability and run logs.
-- After mock/backend preset work is stable, focus on userscript UX for simple preset selection and preference ordering.
+- Add backend-backed preset preference sync for connected users.
+- Add an advanced/custom policy section after the common preset flow is stable.
 - Continue extracting/localizing UI strings.
 - Add tests around any new policy behavior.
 - Keep production and mock flows clearly separated.
