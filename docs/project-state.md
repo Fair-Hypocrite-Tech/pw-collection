@@ -14,6 +14,7 @@ Implemented capabilities:
 - reward claim for the selected target category
 - stop/decision behavior for risky above-target states
 - in-page modal/toast UI instead of relying only on native alerts
+- in-script help modal explaining launch, stats connection, presets, and mock-testbed source behavior
 - lightweight preset selection before launch, including the common target 3/5/6 flows
 - local preference ordering for the last selected default or manual preset
 - backend preference sync for connected stats users, with local fallback if sync fails
