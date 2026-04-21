@@ -15,6 +15,7 @@ Implemented capabilities:
 - stop/decision behavior for risky above-target states
 - in-page modal/toast UI instead of relying only on native alerts
 - in-script help modal explaining launch, stats connection, presets, and mock-testbed source behavior
+- optional support button that opens the stats service support page without changing the free card-processing flow
 - runtime UI strings continue moving into `UI_COPY`/`MESSAGES` instead of inline modal logic
 - lightweight preset selection before launch, including the common target 3/5/6 flows
 - advanced preset builder for safe custom target behavior using the existing strict and claim-up-to-secondary policies
