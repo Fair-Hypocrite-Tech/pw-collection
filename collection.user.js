@@ -218,8 +218,19 @@ Object.assign(UI_COPY, {
     presetMessage: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435, \u043a\u0430\u043a\u0443\u044e \u0446\u0435\u043b\u044c \u0441\u043e\u0431\u0438\u0440\u0430\u0442\u044c. \u041f\u0440\u043e\u0448\u043b\u044b\u0439 \u0432\u044b\u0431\u043e\u0440 \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043a\u0430\u0437\u0430\u043d \u043f\u0435\u0440\u0432\u044b\u043c.',
     presetDetailsIntro: '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0438:',
     presetManual: '\u0414\u0440\u0443\u0433\u0430\u044f \u0446\u0435\u043b\u044c',
+    presetAdvanced: 'Расширенная настройка',
     presetCancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
-    launchPresetLine: '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439: '
+    launchPresetLine: '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439: ',
+    advancedPresetTitle: 'Расширенная настройка',
+    advancedPresetMessage: 'Выберите безопасный вариант поведения для категорий выше основной цели.',
+    advancedPresetDetails: 'Строгий режим: если соберется категория выше цели, скрипт остановится и покажет статистику.\n\nЗабирать до категории: если выше основной цели собралась категория не выше указанной дополнительной цели, скрипт заберет приз. Если соберется категория еще выше, скрипт остановится.',
+    advancedStrict: 'Строгий стоп выше цели',
+    advancedClaimUpToSecondary: 'Забирать выше цели до категории',
+    advancedSecondaryTitle: 'Дополнительная верхняя цель',
+    advancedSecondaryPrompt: 'Введите категорию выше или равную основной цели. Если соберется категория до этого уровня, скрипт заберет приз. Всё, что выше, остановит запуск.',
+    advancedSecondaryLabel: 'Дополнительная цель',
+    advancedPresetDescriptionStrict: target => `Основная цель - ${target}. Если соберется категория выше цели, скрипт остановится для ручного решения.`,
+    advancedPresetDescriptionClaim: (target, secondary) => `Основная цель - ${target}. Категории выше цели до ${secondary} включительно будут забираться как приз; выше ${secondary} - остановка.`
 });
 
 Object.assign(UI_COPY, {
@@ -298,6 +309,59 @@ async function requestTargetCategory() {
     });
 }
 
+async function requestAdvancedCollectionPreset() {
+    const targetCategoryInput = await requestTargetCategory();
+    if (!isValidTargetCategory(targetCategoryInput)) {
+        return null;
+    }
+
+    const targetCategory = parseInt(targetCategoryInput, 10);
+    const mode = await ui.openModal({
+        title: UI_COPY.advancedPresetTitle,
+        message: UI_COPY.advancedPresetMessage,
+        details: UI_COPY.advancedPresetDetails,
+        buttons: [
+            {label: UI_COPY.presetCancel, value: null, variant: 'secondary'},
+            {label: UI_COPY.advancedStrict, value: POLICY_MODES.strict, variant: 'secondary'},
+            {label: UI_COPY.advancedClaimUpToSecondary, value: POLICY_MODES.claimUpToSecondary, variant: 'primary'}
+        ]
+    });
+
+    if (mode === null) {
+        return null;
+    }
+
+    if (mode === POLICY_MODES.strict || targetCategory === TOP_CATEGORY) {
+        return buildCustomPreset(targetCategory, POLICY_MODES.strict, targetCategory);
+    }
+
+    const secondaryTargetInput = await ui.prompt(UI_COPY.advancedSecondaryTitle, UI_COPY.advancedSecondaryPrompt, {
+        label: UI_COPY.advancedSecondaryLabel,
+        placeholder: `${targetCategory}-${TOP_CATEGORY}`,
+        value: String(TOP_CATEGORY),
+        confirmText: UI_COPY.targetConfirm,
+        cancelText: UI_COPY.targetCancel,
+        validate: value => {
+            if (!isValidTargetCategory(value)) {
+                return MESSAGES.invalidTargetCategory;
+            }
+
+            const secondaryTarget = parseInt(value, 10);
+            if (secondaryTarget < targetCategory) {
+                return `Дополнительная цель должна быть не ниже основной категории ${targetCategory}.`;
+            }
+
+            return true;
+        }
+    });
+
+    if (!isValidTargetCategory(secondaryTargetInput)) {
+        return null;
+    }
+
+    return buildCustomPreset(targetCategory, POLICY_MODES.claimUpToSecondary, parseInt(secondaryTargetInput, 10));
+}
+
 function findPresetById(presetId, presets = DEFAULT_COLLECTION_PRESETS) {
     return presets.find(preset => preset.id === presetId) || null;
 }
@@ -314,6 +378,37 @@ function normalizePresetChoice(rawPreset) {
         targetCategory: parseInt(rawPreset.targetCategory, 10),
         policy: rawPreset.policy ? {...rawPreset.policy} : null
     };
+}
+
+function buildCustomPreset(targetCategory, mode = POLICY_MODES.strict, secondaryTarget = targetCategory) {
+    const normalizedTarget = parseInt(targetCategory, 10);
+    const normalizedSecondary = parseInt(secondaryTarget, 10);
+    if (!isValidTargetCategory(normalizedTarget)) {
+        return null;
+    }
+
+    const isClaimMode = mode === POLICY_MODES.claimUpToSecondary;
+    const safeSecondaryTarget = isClaimMode && isValidTargetCategory(normalizedSecondary)
+        ? Math.max(normalizedTarget, normalizedSecondary)
+        : normalizedTarget;
+
+    return normalizePresetChoice({
+        id: isClaimMode
+            ? `custom-${normalizedTarget}-claim-up-to-${safeSecondaryTarget}`
+            : `custom-${normalizedTarget}-strict`,
+        title: isClaimMode
+            ? `${UI_COPY.targetLabel} ${normalizedTarget}, забирать до ${safeSecondaryTarget}`
+            : `${UI_COPY.targetLabel} ${normalizedTarget}, строгий стоп`,
+        description: isClaimMode
+            ? UI_COPY.advancedPresetDescriptionClaim(normalizedTarget, safeSecondaryTarget)
+            : UI_COPY.advancedPresetDescriptionStrict(normalizedTarget),
+        targetCategory: normalizedTarget,
+        policy: {
+            mode: isClaimMode ? POLICY_MODES.claimUpToSecondary : POLICY_MODES.strict,
+            secondaryTarget: safeSecondaryTarget,
+            onAboveSecondary: ABOVE_SECONDARY_ACTIONS.stop
+        }
+    });
 }
 
 function sortPresetsByPreference(presets, preferredPresetId) {
@@ -377,6 +472,7 @@ async function requestCollectionPreset() {
     const buttons = [
         {label: UI_COPY.presetCancel, value: null, variant: 'secondary'},
         {label: UI_COPY.presetManual, value: 'manual', variant: 'secondary'},
+        {label: UI_COPY.presetAdvanced, value: 'advanced', variant: 'secondary'},
         ...presets.map(preset => ({
             label: preset.title,
             value: preset.id,
@@ -402,16 +498,11 @@ async function requestCollectionPreset() {
         }
 
         const targetCategory = parseInt(targetCategoryInput, 10);
-        return normalizePresetChoice({
-            id: `manual-${targetCategory}`,
-            title: `${UI_COPY.targetLabel} ${targetCategory}`,
-            targetCategory,
-            policy: {
-                mode: POLICY_MODES.strict,
-                secondaryTarget: targetCategory,
-                onAboveSecondary: ABOVE_SECONDARY_ACTIONS.stop
-            }
-        });
+        return buildCustomPreset(targetCategory, POLICY_MODES.strict, targetCategory);
+    }
+
+    if (selectedPresetId === 'advanced') {
+        return requestAdvancedCollectionPreset();
     }
 
     const selectedPreset = findPresetById(selectedPresetId, presets);
