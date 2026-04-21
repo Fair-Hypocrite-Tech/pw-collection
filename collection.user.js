@@ -87,9 +87,11 @@ const UI_COPY = {
     launchCancel: 'Отмена',
     ok: 'Закрыть',
     statsTitle: 'Статистика запуска',
+    statsIntermediateMessage: 'Промежуточная статистика текущего запуска.',
     currentStateTitle: 'Текущее состояние',
     currentStateMessage: 'Текущее состояние бота:',
     debugTitle: 'Дебаг',
+    debugStateComparisonMessage: 'Сравнение предыдущего и нового состояния.',
     errorTitle: 'Ошибка',
     stoppedTitle: 'Скрипт остановлен',
     cardsOutTitle: 'Карточки закончились',
@@ -229,6 +231,8 @@ Object.assign(UI_COPY, {
     advancedSecondaryTitle: 'Дополнительная верхняя цель',
     advancedSecondaryPrompt: 'Введите категорию выше или равную основной цели. Если соберется категория до этого уровня, скрипт заберет приз. Всё, что выше, остановит запуск.',
     advancedSecondaryLabel: 'Дополнительная цель',
+    customPresetTitleClaim: (target, secondary) => `${UI_COPY.targetLabel} ${target}, забирать до ${secondary}`,
+    customPresetTitleStrict: target => `${UI_COPY.targetLabel} ${target}, строгий стоп`,
     advancedPresetDescriptionStrict: target => `Основная цель - ${target}. Если соберется категория выше цели, скрипт остановится для ручного решения.`,
     advancedPresetDescriptionClaim: (target, secondary) => `Основная цель - ${target}. Категории выше цели до ${secondary} включительно будут забираться как приз; выше ${secondary} - остановка.`
 });
@@ -397,8 +401,8 @@ function buildCustomPreset(targetCategory, mode = POLICY_MODES.strict, secondary
             ? `custom-${normalizedTarget}-claim-up-to-${safeSecondaryTarget}`
             : `custom-${normalizedTarget}-strict`,
         title: isClaimMode
-            ? `${UI_COPY.targetLabel} ${normalizedTarget}, забирать до ${safeSecondaryTarget}`
-            : `${UI_COPY.targetLabel} ${normalizedTarget}, строгий стоп`,
+            ? UI_COPY.customPresetTitleClaim(normalizedTarget, safeSecondaryTarget)
+            : UI_COPY.customPresetTitleStrict(normalizedTarget),
         description: isClaimMode
             ? UI_COPY.advancedPresetDescriptionClaim(normalizedTarget, safeSecondaryTarget)
             : UI_COPY.advancedPresetDescriptionStrict(normalizedTarget),
@@ -1521,7 +1525,7 @@ class CollectionRoulette {
     }
 
     async sayStats() {
-        await ui.alert(UI_COPY.statsTitle, 'Промежуточная статистика текущего запуска.', this.formatStats());
+        await ui.alert(UI_COPY.statsTitle, UI_COPY.statsIntermediateMessage, this.formatStats());
     }
 
     async sayCurrentState() {
@@ -1564,7 +1568,7 @@ class CollectionRoulette {
 
     async resolveNewCardCategory(newState) {
         if (this.debugModeOn) {
-            await ui.alert(UI_COPY.debugTitle, 'Сравнение предыдущего и нового состояния.', MESSAGES.debugNewStateComparison(newState.rows, this.currentState.rows));
+            await ui.alert(UI_COPY.debugTitle, UI_COPY.debugStateComparisonMessage, MESSAGES.debugNewStateComparison(newState.rows, this.currentState.rows));
         }
 
         for (const category of CATEGORY_KEYS) {

@@ -15,6 +15,7 @@ Implemented capabilities:
 - stop/decision behavior for risky above-target states
 - in-page modal/toast UI instead of relying only on native alerts
 - in-script help modal explaining launch, stats connection, presets, and mock-testbed source behavior
+- runtime UI strings continue moving into `UI_COPY`/`MESSAGES` instead of inline modal logic
 - lightweight preset selection before launch, including the common target 3/5/6 flows
 - advanced preset builder for safe custom target behavior using the existing strict and claim-up-to-secondary policies
 - local preference ordering for the last selected default or manual preset
