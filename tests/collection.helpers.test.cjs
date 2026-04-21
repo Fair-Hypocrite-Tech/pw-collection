@@ -53,7 +53,14 @@ function extractFunction(name) {
 }
 
 function loadHelpers() {
-    const sandbox = {};
+    const sandbox = {
+        URL,
+        window: {
+            location: {
+                origin: 'https://pw-collection-stats.fairhypocrite.com'
+            }
+        }
+    };
     const helperSource = [
         extractConst('CATEGORY_KEYS'),
         extractConst('TOP_CATEGORY'),
@@ -78,7 +85,8 @@ function loadHelpers() {
         extractFunction('normalizeStatsAuthState'),
         extractFunction('hasUsableAccessToken'),
         extractFunction('canRefreshStatsSession'),
-        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, buildCustomPreset, sortPresetsByPreference, buildPresetList, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
+        extractFunction('buildStatsConnectUrl'),
+        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, buildCustomPreset, sortPresetsByPreference, buildPresetList, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, buildStatsConnectUrl, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
     ].join('\n\n');
 
     vm.runInNewContext(helperSource, sandbox);
@@ -287,4 +295,12 @@ test('canRefreshStatsSession accepts only non-expired refreshable states', () =>
         refreshToken: 'refresh-token',
         refreshExpiresAt: '2026-04-11T09:59:59.000Z'
     }, nowMs), false);
+});
+
+test('buildStatsConnectUrl passes current page origin for connect callback', () => {
+    const connectUrl = new URL(helpers.buildStatsConnectUrl('browser-1'));
+
+    assert.equal(connectUrl.searchParams.get('clientId'), 'browser-1');
+    assert.equal(connectUrl.searchParams.get('clientLabel'), helpers.STATS_CONFIG.clientLabel);
+    assert.equal(connectUrl.searchParams.get('returnOrigin'), 'https://pw-collection-stats.fairhypocrite.com');
 });

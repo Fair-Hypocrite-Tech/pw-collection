@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PW collection bot
 // @namespace    http://tampermonkey.net/
-// @version      2026.04.21.1
+// @version      2026.04.21.2
 // @description  Automates the Perfect World "Collection" minigame flow
 // @author       Fair Hypocrite
 // @updateURL    https://github.com/FairHypo/pw-collection/raw/main/collection.user.js
@@ -15,7 +15,7 @@
 // @connect      pw-collection-stats.fairhypocrite.com
 // ==/UserScript==
 
-const SCRIPT_VERSION = '2026.04.21.1';
+const SCRIPT_VERSION = '2026.04.21.2';
 const BASE_URL = 'https://pwonline.ru/minigames.php?game=collection';
 const INFO_URL = `${BASE_URL}&doo=info`;
 const TURN_URL = `${BASE_URL}&doo=turn`;
@@ -1187,6 +1187,9 @@ function buildStatsConnectUrl(clientId) {
     const connectUrl = new URL(STATS_CONFIG.connectPage);
     connectUrl.searchParams.set('clientId', clientId);
     connectUrl.searchParams.set('clientLabel', STATS_CONFIG.clientLabel);
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        connectUrl.searchParams.set('returnOrigin', window.location.origin);
+    }
     return connectUrl.toString();
 }
 

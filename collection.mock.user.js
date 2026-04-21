@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PW collection bot mock dev
 // @namespace    https://fairhypo.dev/pw-collection/mock
-// @version      2026.04.21.1-mock
+// @version      2026.04.21.2-mock
 // @description  Dev mock version for testing the PW Collection bot against the mock server
 // @author       Fair Hypocrite
 // @updateURL    https://github.com/Fair-Hypocrite-Tech/pw-collection/raw/main/collection.mock.user.js
@@ -17,7 +17,7 @@
 // @connect      pw-collection-stats.fairhypocrite.com
 // ==/UserScript==
 
-const SCRIPT_VERSION = '2026.04.21.1-mock';
+const SCRIPT_VERSION = '2026.04.21.2-mock';
 const MOCK_ORIGIN = window.location.origin;
 const BASE_URL = `${MOCK_ORIGIN}/api/v1/mock-collection`;
 const INFO_URL = `${BASE_URL}/info`;
@@ -1232,6 +1232,9 @@ function buildStatsConnectUrl(clientId) {
     const connectUrl = new URL(STATS_CONFIG.connectPage);
     connectUrl.searchParams.set('clientId', clientId);
     connectUrl.searchParams.set('clientLabel', STATS_CONFIG.clientLabel);
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        connectUrl.searchParams.set('returnOrigin', window.location.origin);
+    }
     return connectUrl.toString();
 }
 
