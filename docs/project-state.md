@@ -16,6 +16,7 @@ Implemented capabilities:
 - in-page modal/toast UI instead of relying only on native alerts
 - in-script help modal explaining launch, stats connection, presets, and mock-testbed source behavior
 - lightweight preset selection before launch, including the common target 3/5/6 flows
+- advanced preset builder for safe custom target behavior using the existing strict and claim-up-to-secondary policies
 - local preference ordering for the last selected default or manual preset
 - backend preference sync for connected stats users, with local fallback if sync fails
 - optional remote stats connect/send flow
@@ -41,7 +42,7 @@ Implemented capabilities:
 
 ## Likely Next Work
 
-- Add an advanced/custom policy section after the common preset flow is stable.
 - Continue extracting/localizing UI strings.
 - Add tests around any new policy behavior.
+- Improve dashboard visibility for connected production vs mock stats sources.
 - Keep production and mock flows clearly separated.

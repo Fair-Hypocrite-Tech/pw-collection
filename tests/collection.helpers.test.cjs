@@ -63,6 +63,7 @@ function loadHelpers() {
         extractConst('POLICY_MODES'),
         extractConst('ABOVE_SECONDARY_ACTIONS'),
         extractConst('DEFAULT_COLLECTION_PRESETS'),
+        "const UI_COPY = { targetLabel: 'Target', advancedPresetDescriptionStrict: target => `Strict ${target}`, advancedPresetDescriptionClaim: (target, secondary) => `Claim ${target}-${secondary}` };",
         extractFunction('createEmptyRows'),
         extractFunction('createEmptyState'),
         extractFunction('createEmptyStats'),
@@ -70,13 +71,14 @@ function loadHelpers() {
         extractFunction('isValidTargetCategory'),
         extractFunction('findPresetById'),
         extractFunction('normalizePresetChoice'),
+        extractFunction('buildCustomPreset'),
         extractFunction('sortPresetsByPreference'),
         extractFunction('buildPresetList'),
         extractFunction('isFutureTimestamp'),
         extractFunction('normalizeStatsAuthState'),
         extractFunction('hasUsableAccessToken'),
         extractFunction('canRefreshStatsSession'),
-        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, sortPresetsByPreference, buildPresetList, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
+        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, buildCustomPreset, sortPresetsByPreference, buildPresetList, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
     ].join('\n\n');
 
     vm.runInNewContext(helperSource, sandbox);
@@ -198,6 +200,40 @@ test('normalizePresetChoice rejects invalid target categories', () => {
             description: '',
             targetCategory: 4,
             policy: {mode: 'strict'}
+        }
+    );
+});
+
+test('buildCustomPreset creates strict and claim-up-to-secondary policies safely', () => {
+    assert.equal(helpers.buildCustomPreset(7), null);
+
+    assert.deepEqual(
+        normalize(helpers.buildCustomPreset(4, helpers.POLICY_MODES.strict, 6)),
+        {
+            id: 'custom-4-strict',
+            title: 'Target 4, строгий стоп',
+            description: 'Strict 4',
+            targetCategory: 4,
+            policy: {
+                mode: 'strict',
+                secondaryTarget: 4,
+                onAboveSecondary: 'stop'
+            }
+        }
+    );
+
+    assert.deepEqual(
+        normalize(helpers.buildCustomPreset(3, helpers.POLICY_MODES.claimUpToSecondary, 5)),
+        {
+            id: 'custom-3-claim-up-to-5',
+            title: 'Target 3, забирать до 5',
+            description: 'Claim 3-5',
+            targetCategory: 3,
+            policy: {
+                mode: 'claim-up-to-secondary',
+                secondaryTarget: 5,
+                onAboveSecondary: 'stop'
+            }
         }
     );
 });
