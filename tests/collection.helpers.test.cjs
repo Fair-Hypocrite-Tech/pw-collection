@@ -71,6 +71,11 @@ function loadHelpers() {
         extractConst('ABOVE_SECONDARY_ACTIONS'),
         extractConst('DEFAULT_COLLECTION_PRESETS'),
         "const UI_COPY = { targetLabel: 'Target', customPresetTitleClaim: (target, secondary) => `Target ${target}, забирать до ${secondary}`, customPresetTitleStrict: target => `Target ${target}, строгий стоп`, advancedPresetDescriptionStrict: target => `Strict ${target}`, advancedPresetDescriptionClaim: (target, secondary) => `Claim ${target}-${secondary}` };",
+        `Object.assign(UI_COPY, {
+            aboveTargetOnlyTop: 'Только 6',
+            aboveTargetStrict: target => \`Стоп выше \${target}\`,
+            aboveTargetClaimTo: secondary => \`Забирать до \${secondary}\`
+        });`,
         extractFunction('createEmptyRows'),
         extractFunction('createEmptyState'),
         extractFunction('createEmptyStats'),
@@ -81,12 +86,14 @@ function loadHelpers() {
         extractFunction('buildCustomPreset'),
         extractFunction('sortPresetsByPreference'),
         extractFunction('buildPresetList'),
+        extractFunction('getDefaultPresetForTarget'),
+        extractFunction('buildAboveTargetOptions'),
         extractFunction('isFutureTimestamp'),
         extractFunction('normalizeStatsAuthState'),
         extractFunction('hasUsableAccessToken'),
         extractFunction('canRefreshStatsSession'),
         extractFunction('buildStatsConnectUrl'),
-        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, buildCustomPreset, sortPresetsByPreference, buildPresetList, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, buildStatsConnectUrl, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
+        'this.helpers = { createEmptyRows, createEmptyState, createEmptyStats, getCategoryLimit, isValidTargetCategory, findPresetById, normalizePresetChoice, buildCustomPreset, sortPresetsByPreference, buildPresetList, getDefaultPresetForTarget, buildAboveTargetOptions, isFutureTimestamp, normalizeStatsAuthState, hasUsableAccessToken, canRefreshStatsSession, buildStatsConnectUrl, CATEGORY_KEYS, TOP_CATEGORY, DEFAULT_CATEGORY_LIMIT, TOP_CATEGORY_LIMIT, STATS_CONFIG, POLICY_MODES, ABOVE_SECONDARY_ACTIONS, DEFAULT_COLLECTION_PRESETS };'
     ].join('\n\n');
 
     vm.runInNewContext(helperSource, sandbox);
@@ -243,6 +250,66 @@ test('buildCustomPreset creates strict and claim-up-to-secondary policies safely
                 onAboveSecondary: 'stop'
             }
         }
+    );
+});
+
+test('getDefaultPresetForTarget preserves the common target 3 preset id', () => {
+    const preset = helpers.getDefaultPresetForTarget(3, helpers.POLICY_MODES.claimUpToSecondary, 5);
+
+    assert.equal(preset.id, 'target-3-claim-4-5');
+    assert.equal(preset.targetCategory, 3);
+    assert.equal(preset.policy.mode, helpers.POLICY_MODES.claimUpToSecondary);
+    assert.equal(preset.policy.secondaryTarget, 5);
+});
+
+test('buildAboveTargetOptions exposes clear policies for target 3', () => {
+    const options = normalize(helpers.buildAboveTargetOptions(3).map(option => ({
+        id: option.id,
+        label: option.label,
+        presetId: option.preset.id,
+        mode: option.preset.policy.mode,
+        secondaryTarget: option.preset.policy.secondaryTarget
+    })));
+
+    assert.deepEqual(options, [
+        {
+            id: 'strict',
+            label: 'Стоп выше 3',
+            presetId: 'custom-3-strict',
+            mode: 'strict',
+            secondaryTarget: 3
+        },
+        {
+            id: 'claim-4',
+            label: 'Забирать до 4',
+            presetId: 'custom-3-claim-up-to-4',
+            mode: 'claim-up-to-secondary',
+            secondaryTarget: 4
+        },
+        {
+            id: 'claim-5',
+            label: 'Забирать до 5',
+            presetId: 'target-3-claim-4-5',
+            mode: 'claim-up-to-secondary',
+            secondaryTarget: 5
+        }
+    ]);
+});
+
+test('buildAboveTargetOptions keeps higher targets simple', () => {
+    assert.deepEqual(
+        normalize(helpers.buildAboveTargetOptions(4).map(option => [option.id, option.preset.policy.secondaryTarget])),
+        [['strict', 4], ['claim-5', 5]]
+    );
+
+    assert.deepEqual(
+        normalize(helpers.buildAboveTargetOptions(5).map(option => [option.id, option.preset.policy.secondaryTarget])),
+        [['strict', 5]]
+    );
+
+    assert.deepEqual(
+        normalize(helpers.buildAboveTargetOptions(6).map(option => [option.id, option.preset.policy.secondaryTarget])),
+        [['strict', 6]]
     );
 });
 

@@ -97,8 +97,9 @@ How to use it:
    `https://pwonline.ru/minigames.php?game=collection&doo=display`
 2. Start the script with Tampermonkey or from the browser console.
 3. Confirm the launch.
-4. Choose one of the suggested presets or use the manual target-category option.
-5. Wait for the script to finish.
+4. Choose the primary target category with the `1`-`6` buttons.
+5. Choose what to do with completed categories above the target: stop, claim up to a selected category, or configure manually.
+6. Wait for the script to finish.
 
 Installation and updates:
 
@@ -137,8 +138,9 @@ Open the event page, paste the contents of `collection.user.js` into the browser
 
 Current behavior notes:
 
-- The default preset list covers the common target `3`, `5`, and `6` scenarios.
-- The last selected default or manual preset is remembered locally and shown first next time.
+- The launch UI first asks for the primary target, then separately asks what to do with categories above that target.
+- For target `3`, the second step explicitly offers `Stop above 3`, `Claim up to 4`, `Claim up to 5`, and manual configuration.
+- The last selected preset is remembered locally and can be repeated from the first target-selection step.
 - If stats are connected, the preferred preset is also synced through the stats backend and still falls back to local storage if sync fails.
 - The script continues working after collecting the selected target category.
 - If a category above the target becomes completed, the script stops and asks the user to decide what to do next.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PW collection bot
 // @namespace    http://tampermonkey.net/
-// @version      2026.04.21.2
+// @version      2026.04.21.3
 // @description  Automates the Perfect World "Collection" minigame flow
 // @author       Fair Hypocrite
 // @updateURL    https://github.com/FairHypo/pw-collection/raw/main/collection.user.js
@@ -15,7 +15,7 @@
 // @connect      pw-collection-stats.fairhypocrite.com
 // ==/UserScript==
 
-const SCRIPT_VERSION = '2026.04.21.2';
+const SCRIPT_VERSION = '2026.04.21.3';
 const BASE_URL = 'https://pwonline.ru/minigames.php?game=collection';
 const INFO_URL = `${BASE_URL}&doo=info`;
 const TURN_URL = `${BASE_URL}&doo=turn`;
@@ -218,14 +218,20 @@ Object.assign(UI_COPY, {
 });
 
 Object.assign(UI_COPY, {
-    presetTitle: '\u0412\u044b\u0431\u043e\u0440 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044f',
-    presetMessage: '\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435, \u043a\u0430\u043a\u0443\u044e \u0446\u0435\u043b\u044c \u0441\u043e\u0431\u0438\u0440\u0430\u0442\u044c. \u041f\u0440\u043e\u0448\u043b\u044b\u0439 \u0432\u044b\u0431\u043e\u0440 \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043a\u0430\u0437\u0430\u043d \u043f\u0435\u0440\u0432\u044b\u043c.',
-    presetDetailsIntro: '\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0438:',
-    presetManual: '\u0414\u0440\u0443\u0433\u0430\u044f \u0446\u0435\u043b\u044c',
-    presetAdvanced: 'Расширенная настройка',
+    presetTitle: 'Основная цель',
+    presetMessage: 'Выберите категорию, за которую скрипт должен забирать основной приз.',
+    presetDetailsIntro: 'Сначала выберите основную цель. На следующем шаге скрипт спросит, что делать, если соберется категория выше цели.',
+    presetPrevious: preset => `Повторить: ${preset.title}`,
+    aboveTargetTitle: target => `Категории выше ${target}`,
+    aboveTargetMessage: 'Выберите поведение для случайно собранных категорий выше основной цели.',
+    aboveTargetDetails: target => `Категории ниже ${target} скрипт будет продвигать выше. Основную категорию ${target} он будет забирать как приз.`,
+    aboveTargetStrict: target => `Стоп выше ${target}`,
+    aboveTargetClaimTo: secondary => `Забирать до ${secondary}`,
+    aboveTargetOnlyTop: 'Только 6',
+    aboveTargetManual: 'Настроить вручную',
     presetCancel: '\u041e\u0442\u043c\u0435\u043d\u0430',
     launchPresetLine: '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439: ',
-    advancedPresetTitle: 'Расширенная настройка',
+    advancedPresetTitle: 'Настроить поведение выше цели',
     advancedPresetMessage: 'Выберите безопасный вариант поведения для категорий выше основной цели.',
     advancedPresetDetails: 'Строгий режим: если соберется категория выше цели, скрипт остановится и покажет статистику.\n\nЗабирать до категории: если выше основной цели собралась категория не выше указанной дополнительной цели, скрипт заберет приз. Если соберется категория еще выше, скрипт остановится.',
     advancedStrict: 'Строгий стоп выше цели',
@@ -236,7 +242,14 @@ Object.assign(UI_COPY, {
     customPresetTitleClaim: (target, secondary) => `${UI_COPY.targetLabel} ${target}, забирать до ${secondary}`,
     customPresetTitleStrict: target => `${UI_COPY.targetLabel} ${target}, строгий стоп`,
     advancedPresetDescriptionStrict: target => `Основная цель - ${target}. Если соберется категория выше цели, скрипт остановится для ручного решения.`,
-    advancedPresetDescriptionClaim: (target, secondary) => `Основная цель - ${target}. Категории выше цели до ${secondary} включительно будут забираться как приз; выше ${secondary} - остановка.`
+    advancedPresetDescriptionClaim: (target, secondary) => `Основная цель - ${target}. Категории выше цели до ${secondary} включительно будут забираться как приз; выше ${secondary} - остановка.`,
+    presetSummary: preset => [
+        `Основная цель: ${preset.targetCategory}`,
+        preset.policy?.mode === POLICY_MODES.claimUpToSecondary
+            ? `Категории выше цели до ${preset.policy.secondaryTarget}: забирать приз`
+            : 'Категории выше цели: остановка для ручного решения',
+        'Категории ниже цели: продвигать выше'
+    ].join('\n')
 });
 
 Object.assign(UI_COPY, {
@@ -315,8 +328,11 @@ async function requestTargetCategory() {
     });
 }
 
-async function requestAdvancedCollectionPreset() {
-    const targetCategoryInput = await requestTargetCategory();
+async function requestAdvancedCollectionPreset(targetCategoryInput = null) {
+    if (targetCategoryInput === null) {
+        targetCategoryInput = await requestTargetCategory();
+    }
+
     if (!isValidTargetCategory(targetCategoryInput)) {
         return null;
     }
@@ -465,54 +481,173 @@ function buildPresetList(preferredPreset) {
     return sortPresetsByPreference(availablePresets, preferredPreset?.id || '');
 }
 
-function formatPresetDetails(presets) {
+function getDefaultPresetForTarget(targetCategory, mode = POLICY_MODES.strict, secondaryTarget = targetCategory) {
+    const normalizedTarget = parseInt(targetCategory, 10);
+    const normalizedSecondary = parseInt(secondaryTarget, 10);
+
+    if (
+        normalizedTarget === 3
+        && mode === POLICY_MODES.claimUpToSecondary
+        && normalizedSecondary === 5
+    ) {
+        return normalizePresetChoice(DEFAULT_COLLECTION_PRESETS[0]);
+    }
+
+    if (normalizedTarget === 5 && mode === POLICY_MODES.strict) {
+        return normalizePresetChoice(DEFAULT_COLLECTION_PRESETS[1]);
+    }
+
+    if (normalizedTarget === 6 && mode === POLICY_MODES.strict) {
+        return normalizePresetChoice(DEFAULT_COLLECTION_PRESETS[2]);
+    }
+
+    return buildCustomPreset(normalizedTarget, mode, normalizedSecondary);
+}
+
+function buildAboveTargetOptions(targetCategory) {
+    const normalizedTarget = parseInt(targetCategory, 10);
+    if (!isValidTargetCategory(normalizedTarget)) {
+        return [];
+    }
+
+    if (normalizedTarget === TOP_CATEGORY) {
+        return [{
+            id: 'strict',
+            label: UI_COPY.aboveTargetOnlyTop,
+            preset: getDefaultPresetForTarget(normalizedTarget, POLICY_MODES.strict, normalizedTarget),
+            variant: 'primary'
+        }];
+    }
+
+    const options = [{
+        id: 'strict',
+        label: UI_COPY.aboveTargetStrict(normalizedTarget),
+        preset: getDefaultPresetForTarget(normalizedTarget, POLICY_MODES.strict, normalizedTarget),
+        variant: 'secondary'
+    }];
+
+    if (normalizedTarget === 3) {
+        options.push({
+            id: 'claim-4',
+            label: UI_COPY.aboveTargetClaimTo(4),
+            preset: getDefaultPresetForTarget(normalizedTarget, POLICY_MODES.claimUpToSecondary, 4),
+            variant: 'secondary'
+        });
+        options.push({
+            id: 'claim-5',
+            label: UI_COPY.aboveTargetClaimTo(5),
+            preset: getDefaultPresetForTarget(normalizedTarget, POLICY_MODES.claimUpToSecondary, 5),
+            variant: 'primary'
+        });
+    } else if (normalizedTarget === 4) {
+        options.push({
+            id: 'claim-5',
+            label: UI_COPY.aboveTargetClaimTo(5),
+            preset: getDefaultPresetForTarget(normalizedTarget, POLICY_MODES.claimUpToSecondary, 5),
+            variant: 'primary'
+        });
+    } else if (normalizedTarget < 3) {
+        options.push({
+            id: 'claim-5',
+            label: UI_COPY.aboveTargetClaimTo(5),
+            preset: getDefaultPresetForTarget(normalizedTarget, POLICY_MODES.claimUpToSecondary, 5),
+            variant: 'primary'
+        });
+    }
+
+    return options;
+}
+
+function formatAboveTargetDetails(targetCategory, options) {
     return [
-        UI_COPY.presetDetailsIntro,
-        ...presets.map((preset, index) => `${index + 1}. ${preset.title}\n${preset.description}`)
-    ].join('\n\n');
+        UI_COPY.aboveTargetDetails(targetCategory),
+        '',
+        ...options.map(option => `${option.label}\n${option.preset.description}`)
+    ].join('\n');
+}
+
+async function requestPrimaryTargetCategory(preferredPreset) {
+    const buttons = [
+        {label: UI_COPY.presetCancel, value: null, variant: 'secondary'}
+    ];
+
+    if (preferredPreset) {
+        buttons.push({
+            label: UI_COPY.presetPrevious(preferredPreset),
+            value: 'previous',
+            variant: 'primary'
+        });
+    }
+
+    buttons.push(...CATEGORY_KEYS.map(category => ({
+        label: String(category),
+        value: String(category),
+        variant: category === preferredPreset?.targetCategory ? 'primary' : 'secondary'
+    })));
+
+    return ui.openModal({
+        title: UI_COPY.presetTitle,
+        message: UI_COPY.presetMessage,
+        details: UI_COPY.presetDetailsIntro,
+        buttons
+    });
+}
+
+async function requestAboveTargetPolicy(targetCategory) {
+    const options = buildAboveTargetOptions(targetCategory);
+    const buttons = [
+        {label: UI_COPY.presetCancel, value: null, variant: 'secondary'},
+        ...options.map(option => ({
+            label: option.label,
+            value: option.id,
+            variant: option.variant
+        }))
+    ];
+
+    if (targetCategory < TOP_CATEGORY) {
+        buttons.push({
+            label: UI_COPY.aboveTargetManual,
+            value: 'manual',
+            variant: 'secondary'
+        });
+    }
+
+    const selectedPolicy = await ui.openModal({
+        title: UI_COPY.aboveTargetTitle(targetCategory),
+        message: UI_COPY.aboveTargetMessage,
+        details: formatAboveTargetDetails(targetCategory, options),
+        buttons
+    });
+
+    if (selectedPolicy === null) {
+        return null;
+    }
+
+    if (selectedPolicy === 'manual') {
+        return requestAdvancedCollectionPreset(targetCategory);
+    }
+
+    const selectedOption = options.find(option => option.id === selectedPolicy);
+    return normalizePresetChoice(selectedOption?.preset);
 }
 
 async function requestCollectionPreset() {
     const preferredPreset = await getPreferredPresetForLaunch();
-    const presets = buildPresetList(preferredPreset);
-    const buttons = [
-        {label: UI_COPY.presetCancel, value: null, variant: 'secondary'},
-        {label: UI_COPY.presetManual, value: 'manual', variant: 'secondary'},
-        {label: UI_COPY.presetAdvanced, value: 'advanced', variant: 'secondary'},
-        ...presets.map(preset => ({
-            label: preset.title,
-            value: preset.id,
-            variant: 'primary'
-        }))
-    ];
+    const selectedTarget = await requestPrimaryTargetCategory(preferredPreset);
 
-    const selectedPresetId = await ui.openModal({
-        title: UI_COPY.presetTitle,
-        message: UI_COPY.presetMessage,
-        details: formatPresetDetails(presets),
-        buttons
-    });
-
-    if (selectedPresetId === null) {
+    if (selectedTarget === null) {
         return null;
     }
 
-    if (selectedPresetId === 'manual') {
-        const targetCategoryInput = await requestTargetCategory();
-        if (!isValidTargetCategory(targetCategoryInput)) {
-            return null;
-        }
-
-        const targetCategory = parseInt(targetCategoryInput, 10);
-        return buildCustomPreset(targetCategory, POLICY_MODES.strict, targetCategory);
+    if (selectedTarget === 'previous') {
+        return preferredPreset;
     }
 
-    if (selectedPresetId === 'advanced') {
-        return requestAdvancedCollectionPreset();
+    if (!isValidTargetCategory(selectedTarget)) {
+        return null;
     }
 
-    const selectedPreset = findPresetById(selectedPresetId, presets);
-    return normalizePresetChoice(selectedPreset);
+    return requestAboveTargetPolicy(parseInt(selectedTarget, 10));
 }
 
 function getScriptSource() {
@@ -1548,7 +1683,9 @@ class CollectionRoulette {
     }
 
     async checkCurrentTargetCategory() {
-        const details = this.preset ? UI_COPY.launchPresetLine + this.preset.title : '';
+        const details = this.preset
+            ? `${UI_COPY.launchPresetLine}${this.preset.title}\n\n${UI_COPY.presetSummary(this.preset)}`
+            : '';
         const result = await ui.openModal({
             title: UI_COPY.launchTitle,
             message: MESSAGES.targetCategoryConfirmation(this.targetCategory),
