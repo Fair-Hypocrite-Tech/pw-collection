@@ -703,20 +703,22 @@ async function requestAboveTargetPolicy(targetCategory) {
 }
 
 async function requestCollectionPreset() {
-    const targetCategoryInput = await requestTargetCategory();
-    if (!isValidTargetCategory(targetCategoryInput)) {
+    const preferredPreset = await getPreferredPresetForLaunch();
+    const selectedTarget = await requestPrimaryTargetCategory(preferredPreset);
+
+    if (selectedTarget === null) {
         return null;
     }
 
-    const targetCategory = parseInt(targetCategoryInput, 10);
-    const policy = getMockPolicyFromPage();
+    if (selectedTarget === 'previous') {
+        return preferredPreset;
+    }
 
-    return normalizePresetChoice({
-        id: `mock-${targetCategory}`,
-        title: `Mock target ${targetCategory}`,
-        targetCategory,
-        policy
-    });
+    if (!isValidTargetCategory(selectedTarget)) {
+        return null;
+    }
+
+    return requestAboveTargetPolicy(parseInt(selectedTarget, 10));
 }
 
 function getScriptSource() {
@@ -1953,12 +1955,14 @@ async function startScript() {
     const debugModeOn = false;
     const roulette = new CollectionRoulette(selectedPreset.targetCategory, debugModeOn, selectedPreset);
 
-    if (roulette.policy && roulette.policy.primaryTarget !== selectedPreset.targetCategory) {
-        ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastTargetMismatch, 'info', 4200);
-        roulette.policy = {...roulette.policy, primaryTarget: selectedPreset.targetCategory};
-    } else if (roulette.policy) {
-        ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastLoaded, 'info', 2600);
-    } else {
+    if (roulette.policy && Object.prototype.hasOwnProperty.call(roulette.policy, 'primaryTarget')) {
+        if (roulette.policy.primaryTarget !== selectedPreset.targetCategory) {
+            ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastTargetMismatch, 'info', 4200);
+            roulette.policy = {...roulette.policy, primaryTarget: selectedPreset.targetCategory};
+        } else {
+            ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastLoaded, 'info', 2600);
+        }
+    } else if (!roulette.policy) {
         ui.toast(MOCK_POLICY_CONFIG.toastTitle, MOCK_POLICY_CONFIG.toastDefaulted, 'info', 2600);
     }
 

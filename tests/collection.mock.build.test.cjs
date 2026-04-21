@@ -34,6 +34,13 @@ test('mock userscript includes dev-only policy integration for the mock testbed'
     assert.match(mockScriptSource, /MOCK_POLICY_CONFIG\.toastTargetMismatch/);
 });
 
+test('mock userscript keeps the production two-step preset picker', () => {
+    assert.match(mockScriptSource, /async function requestPrimaryTargetCategory\(preferredPreset\)/);
+    assert.match(mockScriptSource, /async function requestAboveTargetPolicy\(targetCategory\)/);
+    assert.match(mockScriptSource, /UI_COPY\.aboveTargetStrict\(normalizedTarget\)/);
+    assert.doesNotMatch(mockScriptSource, /title: `Mock target \$\{targetCategory\}`/);
+});
+
 test('mock userscript keeps the shared help copy for stats and testbed setup', () => {
     assert.match(mockScriptSource, /scriptHelpDetails/);
     assert.match(mockScriptSource, /mock-tampermonkey/);
