@@ -2,7 +2,7 @@
   "meta": {
     "name": "PW collection bot mock dev",
     "namespace": "https://fairhypo.dev/pw-collection/mock",
-    "version": "2026.04.21.1-mock",
+    "version": "2026.04.21.2-mock",
     "description": "Dev mock version for testing the PW Collection bot against the mock server",
     "updateUrl": "https://github.com/Fair-Hypocrite-Tech/pw-collection/raw/main/collection.mock.user.js",
     "downloadUrl": "https://github.com/Fair-Hypocrite-Tech/pw-collection/raw/main/collection.mock.user.js",
@@ -16,7 +16,7 @@
     ]
   },
   "script": {
-    "version": "2026.04.21.1-mock",
+    "version": "2026.04.21.2-mock",
     "storagePrefix": "pwc_mock_stats",
     "clientLabel": "Tampermonkey mock browser",
     "pageLoaded": "Mock page fully loaded!",

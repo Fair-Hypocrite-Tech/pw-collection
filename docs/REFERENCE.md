@@ -98,7 +98,7 @@ Any change around these calls requires extra care.
 - `POST /api/v1/auth/refresh`
   Refreshes script tokens.
 - `/connect`
-  Opens the web connect flow.
+  Opens the web connect flow with `clientId`, `clientLabel`, and `returnOrigin` so the backend can post the one-time connect code back to the page that launched the popup.
 - `/dashboard`
   Opens the web dashboard.
 
