@@ -63,7 +63,7 @@ function loadHelpers() {
         extractConst('POLICY_MODES'),
         extractConst('ABOVE_SECONDARY_ACTIONS'),
         extractConst('DEFAULT_COLLECTION_PRESETS'),
-        "const UI_COPY = { targetLabel: 'Target', advancedPresetDescriptionStrict: target => `Strict ${target}`, advancedPresetDescriptionClaim: (target, secondary) => `Claim ${target}-${secondary}` };",
+        "const UI_COPY = { targetLabel: 'Target', customPresetTitleClaim: (target, secondary) => `Target ${target}, забирать до ${secondary}`, customPresetTitleStrict: target => `Target ${target}, строгий стоп`, advancedPresetDescriptionStrict: target => `Strict ${target}`, advancedPresetDescriptionClaim: (target, secondary) => `Claim ${target}-${secondary}` };",
         extractFunction('createEmptyRows'),
         extractFunction('createEmptyState'),
         extractFunction('createEmptyStats'),
