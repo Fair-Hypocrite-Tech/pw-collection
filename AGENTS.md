@@ -8,13 +8,31 @@ Shared instructions for repository-aware coding agents working in this project.
 
 Use design mode before any non-trivial change unless the user has already approved execution for the current task.
 
-Before writing code:
-1. State what is being changed and why.
-2. List what must NOT break.
-3. Identify affected areas: userscript flow, site integration, stats integration, UI layer, mock testbed.
-4. Propose a minimal step-by-step plan.
+Before writing code, produce a structured plan in this exact format:
 
-Do not write code in design mode. Wait for approval or an explicit request to proceed.
+```markdown
+## Goal
+One sentence: what user-visible or tester-visible outcome this achieves.
+
+## What Must Not Break
+- ...
+
+## Affected Files
+- collection.user.js — what changes and why (no code, just intent)
+- scripts/mock-userscript.config.json — mock-only config impact if any
+- tests/example.test.cjs — coverage added or adapted
+
+## Steps
+1. ...
+2. ...
+
+## Open Questions
+- Anything that needs a decision before implementation starts.
+```
+
+Do not write code in design mode. The plan must be explicit enough that a separate agent can execute it without re-designing. Wait for explicit approval before switching to Execution Mode.
+
+Recommended workflow: use the strongest available model for Design Mode when the change can affect gameplay, Tampermonkey metadata, stats auth, or mock/prod separation. After approval, Execution Mode can use a standard model because the plan carries the architectural intent.
 
 ### EXECUTION MODE
 
@@ -101,6 +119,16 @@ Conventions:
   - in-page UI overlays/modals
   - mock-only policy controls in the generated mock artifact
 
+## Product Increment Standard
+
+Read before starting feature work:
+
+- [PRODUCT_INCREMENT_GUIDELINE.md](PRODUCT_INCREMENT_GUIDELINE.md)
+
+Every non-trivial PR should answer: **"What can someone do now that they couldn't do before?"**
+
+If there is no clear answer, the change is probably incomplete. Refactors, CI, documentation, and preparatory work are allowed, but the PR description must state what behavior is preserved or what follow-up PR closes the loop.
+
 ## Before Every Change
 
 - Is this DESIGN or EXECUTION mode?
@@ -112,6 +140,8 @@ Conventions:
 - Does this affect only mock/testbed behavior or production behavior too?
 - Are existing tests still valid?
 - Is the change covered by a test or manual verification note?
+- Does the PR have an observable outcome and a manual test path?
+- If this is preparatory-only work, which follow-up PR closes the loop?
 
 ## Golden Rule
 
