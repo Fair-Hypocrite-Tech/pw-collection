@@ -14,6 +14,7 @@ test('mock userscript targets both mock pages and uses the current mock origin',
     assert.match(mockScriptSource, /const BASE_URL = `\$\{MOCK_ORIGIN\}\/api\/v1\/mock-collection`;/);
     assert.match(mockScriptSource, /storagePrefix: 'pwc_mock_stats'/);
     assert.match(mockScriptSource, /connectOrigin: MOCK_ORIGIN/);
+    assert.match(mockScriptSource, /supportUrl: `\$\{MOCK_ORIGIN\}\/support`/);
 });
 
 test('mock userscript uses mock-compatible collection API calls', () => {

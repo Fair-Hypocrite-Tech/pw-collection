@@ -62,7 +62,7 @@ Mock network permissions:
   Required count for category `6`.
 - `STATS_CONFIG`
   Optional remote stats/connect/auth configuration.
-  Includes stats ingest, connect, refresh, dashboard, and script preference endpoints.
+  Includes stats ingest, connect, refresh, dashboard, support, and script preference endpoints.
 - `DEFAULT_COLLECTION_PRESETS`
   Lightweight production preset list shown before launch.
 - `POLICY_MODES`

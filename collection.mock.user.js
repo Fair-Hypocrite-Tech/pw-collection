@@ -35,6 +35,7 @@ const STATS_CONFIG = {
     refreshEndpoint: `${MOCK_ORIGIN}/api/v1/auth/refresh`,
     preferencesEndpoint: `${MOCK_ORIGIN}/api/v1/script/preferences`,
     dashboardUrl: `${MOCK_ORIGIN}/dashboard`,
+    supportUrl: `${MOCK_ORIGIN}/support`,
     connectOrigin: MOCK_ORIGIN,
     storagePrefix: 'pwc_mock_stats',
     clientLabel: 'Tampermonkey mock browser',
@@ -224,6 +225,7 @@ Object.assign(UI_COPY, {
     statsPanelDisconnected: 'Статистика не подключена. Бот будет работать как обычно, но без сохранения истории на сервере.',
     statsPanelConnect: 'Подключить',
     statsPanelOpenDashboard: 'Кабинет',
+    supportButton: 'Поддержать',
     statsPanelDisconnect: 'Отключить',
     statsPanelClose: 'Закрыть',
     statsPanelConnecting: 'Откройте страницу подключения, войдите на сайте и подтвердите привязку текущего клиента.',
@@ -1250,6 +1252,10 @@ function openStatsConnectPopup(clientId) {
     return popup;
 }
 
+function openSupportPage() {
+    window.open(STATS_CONFIG.supportUrl, '_blank');
+}
+
 async function connectStatsAccount(preparedFlow = null) {
     const connectFlow = preparedFlow || prepareStatsConnectFlow();
 
@@ -1295,6 +1301,7 @@ async function openStatsPanel() {
     ];
 
     buttons.push({label: UI_COPY.helpButton, value: 'help', variant: 'secondary'});
+    buttons.push({label: UI_COPY.supportButton, value: 'support', variant: 'secondary'});
 
     if (snapshot.connected) {
         buttons.push({label: UI_COPY.statsPanelDisconnect, value: 'disconnect', variant: 'secondary'});
@@ -1338,6 +1345,11 @@ async function openStatsPanel() {
 
     if (action === 'help') {
         await openScriptHelpPanel();
+        return;
+    }
+
+    if (action === 'support') {
+        openSupportPage();
         return;
     }
 
@@ -1736,6 +1748,7 @@ async function startScript() {
             buttons: [
                 {label: UI_COPY.startCancel, value: 'cancel', variant: 'secondary'},
                 {label: UI_COPY.helpButton, value: 'help', variant: 'secondary'},
+                {label: UI_COPY.supportButton, value: 'support', variant: 'secondary'},
                 {label: UI_COPY.statsButton, value: 'stats', variant: 'secondary'},
                 {label: UI_COPY.startConfirm, value: 'start', variant: 'primary'}
             ]
@@ -1752,6 +1765,11 @@ async function startScript() {
 
         if (startAction === 'help') {
             await openScriptHelpPanel();
+            continue;
+        }
+
+        if (startAction === 'support') {
+            openSupportPage();
             continue;
         }
 
