@@ -29,7 +29,7 @@ let output = source;
 
 output = replaceOnce(output, '// @name         PW collection bot', `// @name         ${config.meta.name}`);
 output = replaceOnce(output, '// @namespace    http://tampermonkey.net/', `// @namespace    ${config.meta.namespace}`);
-output = replaceOnce(output, '// @version      2024.12.27', `// @version      ${config.meta.version}`);
+output = replaceRegex(output, /\/\/ @version\s+.+/, `// @version      ${config.meta.version}`);
 output = replaceOnce(output, '// @description  Automates the Perfect World "Collection" minigame flow', `// @description  ${config.meta.description}`);
 output = replaceOnce(output, '// @updateURL    https://github.com/FairHypo/pw-collection/raw/main/collection.user.js', `// @updateURL    ${config.meta.updateUrl}`);
 output = replaceOnce(output, '// @downloadURL  https://github.com/FairHypo/pw-collection/raw/main/collection.user.js', `// @downloadURL  ${config.meta.downloadUrl}`);
@@ -44,7 +44,7 @@ output = replaceOnce(
     config.meta.connectHosts.map(host => `// @connect      ${host}`).join('\n')
 );
 
-output = replaceOnce(output, "const SCRIPT_VERSION = '2024.12.27';", `const SCRIPT_VERSION = '${config.script.version}';`);
+output = replaceRegex(output, /const SCRIPT_VERSION = '[^']+';/, `const SCRIPT_VERSION = '${config.script.version}';`);
 output = replaceOnce(output, "const BASE_URL = 'https://pwonline.ru/minigames.php?game=collection';", "const MOCK_ORIGIN = window.location.origin;\nconst BASE_URL = `${MOCK_ORIGIN}/api/v1/mock-collection`;");
 output = replaceOnce(output, "const INFO_URL = `${BASE_URL}&doo=info`;", "const INFO_URL = `${BASE_URL}/info`;");
 output = replaceOnce(output, "const TURN_URL = `${BASE_URL}&doo=turn`;", "const TURN_URL = `${BASE_URL}/turn`;");

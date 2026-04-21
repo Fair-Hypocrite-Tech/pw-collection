@@ -23,6 +23,7 @@ Implemented capabilities:
 - backend preference sync for connected stats users, with local fallback if sync fails
 - optional remote stats connect/send flow
 - generated mock userscript for `/mock-collection`
+- version bump tooling for production and mock userscripts, with tests that keep metadata/runtime/config versions aligned
 - CI checks for syntax, mock generation, and helper tests
 
 ## Active Design Direction

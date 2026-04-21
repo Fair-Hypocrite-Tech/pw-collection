@@ -8,12 +8,16 @@
   Generated mock userscript for the stats service mock page.
 - `scripts/build-mock-userscript.cjs`
   Mock userscript generator.
+- `scripts/bump-userscript-version.cjs`
+  Updates production `@version`/`SCRIPT_VERSION` and mock config versions before a release.
 - `scripts/mock-userscript.config.json`
   Mock metadata, endpoint, storage, copy, and policy overrides.
 - `tests/collection.helpers.test.cjs`
   Helper-level tests for extracted userscript functions.
 - `tests/collection.mock.build.test.cjs`
   Generated mock userscript assertions.
+- `tests/collection.version.test.cjs`
+  Ensures userscript metadata versions, runtime versions, and mock config versions stay in sync.
 - `.github/workflows/ci.yml`
   Pull-request and branch CI for userscript syntax, mock generation, and tests.
 
